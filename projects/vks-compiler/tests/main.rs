@@ -7,76 +7,84 @@ use std::path::Path;
 
 use oxc::{
     allocator::Allocator,
-    parser::{Parser, ParserReturn},
+    codegen::CodeGenerator,
+    parser::Parser,
+    semantic::SemanticBuilder,
     span::SourceType,
-    semantic::{SemanticBuilder, SemanticBuilderReturn}
+    transformer::{BabelOptions, EnvOptions, HelperLoaderMode, TransformOptions, Transformer},
 };
 
 #[test]
-fn test() {
-    // In real code, this will likely come from a file read from disk.
-    let source_path = Path::new("test.tsx");
-    let source_text = "
-import React from 'react';
-export interface Props {
-    count: number;
-    onInc: () => void;
-    onDec: () => void;
-}
-export const Counter: React.FC<Props> = props => {
-    return (
-        <div>
-            <button onClick={props.onInc}>+</button>
-            <span id='count'>{props.count}</span>
-            <button onClick={props.onDec}>-</button>
-        </div>
-    );
-};
-";
+fn main() {
+    let babel_options_path: Option<String> = None;
+    let targets: Option<String> = None;
+    let target: Option<String> = None;
+    let name = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/test.ts");
 
-    // Memory arena where AST nodes are allocated.
+    let path = Path::new(&name);
+    let source_text = std::fs::read_to_string(path).unwrap_or_else(|err| panic!("{} not found.\n{err}", name.display()));
     let allocator = Allocator::default();
-    // Infer source type (TS/JS/ESM/JSX/etc) based on file extension
-    let source_type = SourceType::from_path(source_path).unwrap();
-    let mut errors = Vec::new();
+    let source_type = SourceType::from_path(path).unwrap();
 
-    // Step 1: Parsing
-    // Parse the TSX file into an AST. The root AST node is a `Program` struct.
-    let ParserReturn { program, trivias, errors: parser_errors, panicked } =
-        Parser::new(&allocator, source_text, source_type).parse();
-    errors.extend(parser_errors);
+    let ret = Parser::new(&allocator, &source_text, source_type).parse();
 
-    // Parsing failed completely. `program` is empty and `errors` isn't. If the
-    // parser could recover from errors, `program` will be a valid AST and
-    // `errors` will be populated. We can still perform semantic analysis in
-    // such cases (if we want).
-    if panicked {
-        for error in &errors {
-            eprintln!("{error:?}");
-            panic!("Parsing failed.");
+    if !ret.errors.is_empty() {
+        println!("Parser Errors:");
+        for error in ret.errors {
+            let error = error.with_source_code(source_text.clone());
+            println!("{error:?}");
         }
     }
 
-    // Step 2: Semantic analysis.
-    // Some of the more expensive syntax checks are deferred to this stage, and are
-    // enabled using `with_check_syntax_error`. You are not required to enable
-    // these, and they are disabled by default.
-    let SemanticBuilderReturn {
-        semantic,
-        errors: semantic_errors,
-    } = SemanticBuilder::new()
-        .with_check_syntax_error(true) // Enable extra syntax error checking
-        .with_build_jsdoc(true)        // Enable JSDoc parsing
-        .with_cfg(true)                // Build a Control Flow Graph
-        .build(&program);              // Produce the `Semantic`
+    println!("Original:\n");
+    println!("{source_text}\n");
 
-    errors.extend(semantic_errors);
-    if errors.is_empty() {
-        println!("parsing and semantic analysis completed successfully.");
-    } else {
-        for error in errors {
-            eprintln!("{error:?}");
-            panic!("Failed to build Semantic for Counter component.");
+    let mut program = ret.program;
+
+    let ret = SemanticBuilder::new()
+        // Estimate transformer will triple scopes, symbols, references
+        .with_excess_capacity(2.0)
+        .with_scope_tree_child_ids(true)
+        .build(&program);
+
+    if !ret.errors.is_empty() {
+        println!("Semantic Errors:");
+        for error in ret.errors {
+            let error = error.with_source_code(source_text.clone());
+            println!("{error:?}");
         }
     }
+
+    let scoping = ret.semantic.into_scoping();
+
+    let mut transform_options = if let Some(babel_options_path) = babel_options_path {
+        let babel_options_path = Path::new(&babel_options_path);
+        let babel_options = BabelOptions::from_test_path(babel_options_path);
+        TransformOptions::try_from(&babel_options).unwrap()
+    }
+    else if let Some(query) = &targets {
+        TransformOptions { env: EnvOptions::from_browserslist_query(query).unwrap(), ..TransformOptions::default() }
+    }
+    else if let Some(target) = &target {
+        TransformOptions::from_target(target).unwrap()
+    }
+    else {
+        TransformOptions::enable_all()
+    };
+
+    transform_options.helper_loader.mode = HelperLoaderMode::External;
+
+    let ret = Transformer::new(&allocator, path, &transform_options).build_with_scoping(scoping, &mut program);
+
+    if !ret.errors.is_empty() {
+        println!("Transformer Errors:");
+        for error in ret.errors {
+            let error = error.with_source_code(source_text.clone());
+            println!("{error:?}");
+        }
+    }
+
+    let printed = CodeGenerator::new().build(&program).code;
+    println!("Transformed:\n");
+    println!("{printed}");
 }
