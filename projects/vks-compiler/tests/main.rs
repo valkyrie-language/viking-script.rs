@@ -1,5 +1,6 @@
 use oxc_resolver::{EnforceExtension, ResolveOptions, Resolver};
-use rolldown::{Bundler, BundlerOptions, InputItem, SourceMapType};
+use rolldown::{Bundler, BundlerOptions, InputItem, OutputFormat, Platform, SourceMapType};
+use rolldown_common::{MinifyOptionsObject, RawMinifyOptions};
 use std::path::Path;
 use vks_compiler::{CompileOptions, VksError};
 
@@ -65,18 +66,23 @@ fn test_resolve() {
 async fn main22() {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
     let index = here.join("tests/basic/src/index.ts");
-    let mut bundler = Bundler::new(BundlerOptions {
+    let options = BundlerOptions {
         name: Some("aaa".to_string()),
         input: Some(vec![
             InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
             // InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
         ]),
         // dir: Some(here.join("tests/basic/dist").to_string_lossy().to_string()),
-        file: Some(here.join("tests/basic/dist/index.cjs").to_string_lossy().to_string()),
+        file: Some(here.join("tests/basic/dist/index.browser.js").to_string_lossy().to_string()),
+        platform: Some(Platform::Browser),
+        format: Some(OutputFormat::Cjs),
         cwd: None,
+        minify: Some(RawMinifyOptions::Object(MinifyOptionsObject { mangle: true, compress: true, remove_whitespace: true })),
         sourcemap: Some(SourceMapType::File),
         ..Default::default()
-    });
+    };
+
+    let mut bundler = Bundler::new(options);
 
     let _result = bundler.write().await.unwrap();
 }

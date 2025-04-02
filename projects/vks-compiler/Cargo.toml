@@ -24,6 +24,9 @@ tokio = { version = "1.44.1", features = ["full"] }
 git = "https://github.com/rolldown/rolldown"
 features = ["serde"]
 
+[dependencies.rolldown_common]
+git = "https://github.com/rolldown/rolldown"
+
 [dev-dependencies]
 
 [features]
