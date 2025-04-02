@@ -1,4 +1,5 @@
 use oxc_resolver::{EnforceExtension, ResolveOptions, Resolver};
+use rolldown::{Bundler, BundlerOptions, InputItem, SourceMapType};
 use std::path::Path;
 use vks_compiler::{CompileOptions, VksError};
 
@@ -18,11 +19,12 @@ fn main() -> Result<(), VksError> {
 }
 
 #[test]
-fn test_bundle() {
+fn test_resolve() {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
     let path = here.join("tests/basic");
-    let specifier = "tests/basic/index.ts";
-
+    let modules = here.join("tests/node_modules").canonicalize().unwrap();
+    let module_path = modules.to_string_lossy().trim_start_matches("\\\\?\\").to_string();
+    println!("{}", module_path);
     assert!(path.is_dir(), "{path:?} must be a directory that will be resolved against.");
     assert!(path.is_absolute(), "{path:?} must be an absolute path.",);
 
@@ -36,12 +38,12 @@ fn test_bundle() {
         extension_alias: vec![],
         exports_fields: vec![vec!["exports".into()]],
         imports_fields: vec![vec!["imports".into()]],
-        extensions: vec![".js".into(), ".json".into(), ".node".into()],
+        extensions: vec![".js".into(), ".ts".into(), ".json".into()],
         fallback: vec![],
         fully_specified: false,
         main_fields: vec!["main".into()],
         main_files: vec!["index".into()],
-        modules: vec!["node_modules".into()],
+        modules: vec![module_path],
         resolve_to_context: false,
         prefer_relative: false,
         prefer_absolute: false,
@@ -51,8 +53,27 @@ fn test_bundle() {
         builtin_modules: false,
     };
 
-    match Resolver::new(options).resolve(path, "index") {
+    match Resolver::new(options).resolve(path, "vite") {
         Err(error) => println!("Error: {error}"),
-        Ok(resolution) => println!("Resolved: {:?}", resolution.full_path()),
+        Ok(resolution) => {
+            println!("Resolved: {:?}", resolution.full_path())
+        }
     }
+}
+
+#[tokio::test]
+async fn main22() {
+    let here = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let index = here.join("tests/basic/src/index.ts");
+    let mut bundler = Bundler::new(BundlerOptions {
+        input: Some(vec![
+            InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
+            // InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
+        ]),
+        cwd: None,
+        sourcemap: Some(SourceMapType::File),
+        ..Default::default()
+    });
+
+    let _result = bundler.write().await.unwrap();
 }
