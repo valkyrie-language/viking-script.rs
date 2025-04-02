@@ -11,7 +11,7 @@ use std::{
 
 use oxc::{
     allocator::Allocator,
-    codegen::{CodeGenerator, CodegenOptions},
+    codegen::{CodeGenerator, CodegenOptions, LegalComment},
     parser::Parser,
     semantic::SemanticBuilder,
     span::SourceType,
@@ -21,8 +21,10 @@ use oxc::{
 #[test]
 fn main() {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let compiler = CompileOptions { debug: true };
+    compiler.generate_file(&here.join("tests/basic/index.ts"), &here.join("tests/basic/debug"));
     let compiler = CompileOptions { debug: false };
-    compiler.generate_file(&here.join("tests/basic/main.ts"), &here.join("tests/basic"))
+    compiler.generate_file(&here.join("tests/basic/index.ts"), &here.join("tests/basic/release"))
 }
 
 pub struct CompileOptions {
@@ -31,8 +33,12 @@ pub struct CompileOptions {
 
 impl CompileOptions {
     fn generate_file(&self, input: &Path, output: &Path) {
-        if !output.is_dir() {
-            panic!("{} is not a directory", output.display())
+        if output.exists() {
+            if output.is_dir() {
+            }
+            else {
+                panic!("{} is not a directory", output.display())
+            }
         }
         else {
             std::fs::create_dir_all(output).unwrap()
@@ -85,15 +91,18 @@ impl CompileOptions {
             }
         }
 
-        let mut codegen = CodegenOptions::default();
-        codegen.single_quote = true;
-        codegen.comments = false;
-        codegen.source_map_path = Some(PathBuf::from("test.map.json"));
-
+        let mut codegen = CodegenOptions {
+            single_quote: true,
+            minify: !self.debug,
+            comments: !self.debug,
+            annotation_comments: !self.debug,
+            legal_comments: LegalComment::External,
+            source_map_path: Some(PathBuf::from("index.map.json")),
+        };
         let printed = CodeGenerator::new().with_options(codegen).build(&program);
-        let mut js_file = File::create(output.join("test.js")).unwrap();
+        let mut js_file = File::create(output.join("index.js")).unwrap();
         js_file.write_all(printed.code.as_bytes()).unwrap();
-        let mut map_file = File::create(output.join("test.map.json")).unwrap();
+        let mut map_file = File::create(output.join("index.map.json")).unwrap();
         match printed.map {
             Some(s) => {
                 map_file.write_all(s.to_json_string().as_bytes()).unwrap();

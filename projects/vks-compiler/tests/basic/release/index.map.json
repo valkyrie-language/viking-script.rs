@@ -1,0 +1,1 @@
+{"version":3,"names":["a: number"],"sources":["index.map.json"],"sourcesContent":["// 测试注释\nexport const a: number = 1"],"mappings":"AACA,OAAO,MAAMA,EAAY"}
