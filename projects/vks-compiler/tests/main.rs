@@ -66,10 +66,13 @@ async fn main22() {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
     let index = here.join("tests/basic/src/index.ts");
     let mut bundler = Bundler::new(BundlerOptions {
+        name: Some("aaa".to_string()),
         input: Some(vec![
             InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
             // InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
         ]),
+        // dir: Some(here.join("tests/basic/dist").to_string_lossy().to_string()),
+        file: Some(here.join("tests/basic/dist/index.cjs").to_string_lossy().to_string()),
         cwd: None,
         sourcemap: Some(SourceMapType::File),
         ..Default::default()
