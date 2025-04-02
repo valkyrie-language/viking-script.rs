@@ -14,7 +14,9 @@ edition = "2021"
 exclude = ["package.json", "tests/**"]
 
 [dependencies]
-oxc = { version = "*", features = ["full"] }
+oxc = { version = "0.62.0", features = ["full"] }
+oxc_isolated_declarations = { version = "0.62.0", features = [] }
+oxc_transformer = { version = "0.62.0", features = [] }
 
 [dev-dependencies]
 
