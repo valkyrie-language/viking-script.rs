@@ -1,0 +1,1 @@
+{"version":3,"names":["a: number"],"sources":["index.js.map"],"sourcesContent":["// 测试注释\nexport const a: number = 1\n\n// 测试注释\nexport function b() {\n    return a + 1\n}"],"mappings":"AACA,OAAO,MAAMA,EAAY,EAGzB,OAAO,SAAS,GAAI,CAChB,OAAO,EAAI,CACd"}
