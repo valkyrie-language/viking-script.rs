@@ -51,25 +51,29 @@ impl<'i> CompileWriter<'i> {
         if input.is_file() {
         }
         else {
-            Err(VksErrorKind::UnknownError)?
+            Err(VksErrorKind::IoError {
+                path: input.to_path_buf(),
+                error: std::io::Error::new(std::io::ErrorKind::IsADirectory, ""),
+            })?
         }
         if output.exists() {
-            if output.is_dir() { Ok(()) } else { Err(VksErrorKind::UnknownError)? }
+            if output.is_dir() {
+                Ok(())
+            }
+            else {
+                Err(VksErrorKind::IoError {
+                    path: output.to_path_buf(),
+                    error: std::io::Error::new(std::io::ErrorKind::AlreadyExists, ""),
+                })?
+            }
         }
         else {
             match std::fs::create_dir_all(output) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(VksErrorKind::UnknownError)?,
+                Err(e) => Err(VksErrorKind::IoError { path: output.to_path_buf(), error: e })?,
             }
         }
     }
-
-    fn generate_dts<'a>(&self, input: Program<'a>, output: &Path) -> Result<(), VksError> {
-        let id_ret =
-            IsolatedDeclarations::new(&self.allocator, IsolatedDeclarationsOptions { strip_internal: true }).build(&ret.program);
-        let printed = CodeGenerator::new().build(&id_ret.program).code;
-    }
-
     fn generate_file(&self, input: &Path, output: &Path) -> Result<(), VksError> {
         self.ensure_io(input, output)?;
 
@@ -78,18 +82,16 @@ impl<'i> CompileWriter<'i> {
 
         let ret = Parser::new(&self.allocator, &source_text, source_type).parse();
 
-        if !ret.errors.is_empty() {
-            println!("Parser Errors:");
-            for error in ret.errors {
-                let error = error.with_source_code(source_text.clone());
-                println!("{error:?}");
-            }
+        for error in ret.errors {
+            let error = error.with_source_code(source_text.clone());
+            println!("{error:?}");
         }
 
         println!("Original:\n");
         println!("{source_text}\n");
 
         let mut program = ret.program;
+        self.generate_dts(&program, output)?;
 
         let ret = SemanticBuilder::new()
             // Estimate transformer will triple scopes, symbols, references
@@ -97,12 +99,9 @@ impl<'i> CompileWriter<'i> {
             .with_scope_tree_child_ids(true)
             .build(&program);
 
-        if !ret.errors.is_empty() {
-            println!("Semantic Errors:");
-            for error in ret.errors {
-                let error = error.with_source_code(source_text.clone());
-                println!("{error:?}");
-            }
+        for error in ret.errors {
+            let error = error.with_source_code(source_text.clone());
+            println!("{error:?}");
         }
 
         let scoping = ret.semantic.into_scoping();
@@ -128,28 +127,18 @@ impl<'i> CompileWriter<'i> {
                 mode: HelperLoaderMode::External,
             },
         };
-        let ret = Transformer::new(&allocator, input, &transform_options).build_with_scoping(scoping, &mut program);
+        let ret = Transformer::new(&self.allocator, input, &transform_options).build_with_scoping(scoping, &mut program);
 
-        if !ret.errors.is_empty() {
-            println!("Transformer Errors:");
-            for error in ret.errors {
-                let error = error.with_source_code(source_text.clone());
-                println!("{error:?}");
-            }
+        for error in ret.errors {
+            let error = error.with_source_code(source_text.clone());
+            println!("{error:?}");
         }
 
-        let codegen = CodegenOptions {
-            single_quote: true,
-            minify: !self.debug,
-            comments: !self.debug,
-            annotation_comments: !self.debug,
-            legal_comments: LegalComment::External,
-            source_map_path: Some(PathBuf::from("index.map.json")),
-        };
-        let printed = CodeGenerator::new().with_options(codegen).build(&program);
+        let printed =
+            CodeGenerator::new().with_options(self.options.as_codegen_options(PathBuf::from("index.js.map"))).build(&program);
         let mut js_file = File::create(output.join("index.js")).unwrap();
         js_file.write_all(printed.code.as_bytes()).unwrap();
-        let mut map_file = File::create(output.join("index.map.json")).unwrap();
+        let mut map_file = File::create(output.join("index.js.map")).unwrap();
         match printed.map {
             Some(s) => {
                 map_file.write_all(s.to_json_string().as_bytes()).unwrap();
@@ -159,5 +148,37 @@ impl<'i> CompileWriter<'i> {
             }
         };
         Ok(())
+    }
+    fn generate_dts<'a>(&self, input: &Program<'a>, output: &Path) -> Result<(), VksError> {
+        let id_ret =
+            IsolatedDeclarations::new(&self.allocator, IsolatedDeclarationsOptions { strip_internal: true }).build(input);
+        let generated = CodeGenerator::new()
+            .with_options(self.options.as_codegen_options(PathBuf::from("index.d.ts.map")))
+            .build(&id_ret.program);
+        let mut dts_file = File::create(output.join("index.d.ts"))?;
+        dts_file.write_all(generated.code.as_bytes())?;
+        let mut map_file = File::create(output.join("index.d.ts.map"))?;
+        match generated.map {
+            Some(s) => {
+                map_file.write_all(s.to_json_string().as_bytes())?;
+            }
+            None => {
+                panic!("missing")
+            }
+        };
+        Ok(())
+    }
+}
+
+impl CompileOptions {
+    pub fn as_codegen_options(&self, json: PathBuf) -> CodegenOptions {
+        CodegenOptions {
+            single_quote: true,
+            minify: !self.debug,
+            comments: !self.debug,
+            annotation_comments: !self.debug,
+            legal_comments: LegalComment::External,
+            source_map_path: Some(json),
+        }
     }
 }
