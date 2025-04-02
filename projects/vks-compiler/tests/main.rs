@@ -3,28 +3,35 @@ fn ready() {
     println!("it works!")
 }
 
-use std::path::Path;
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use oxc::{
     allocator::Allocator,
-    codegen::CodeGenerator,
+    codegen::{CodeGenerator, CodegenOptions},
     parser::Parser,
     semantic::SemanticBuilder,
     span::SourceType,
-    transformer::{BabelOptions, EnvOptions, HelperLoaderMode, TransformOptions, Transformer},
+    transformer::{HelperLoaderMode, TransformOptions, Transformer},
 };
 
 #[test]
 fn main() {
-    let babel_options_path: Option<String> = None;
-    let targets: Option<String> = None;
-    let target: Option<String> = None;
-    let name = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/test.ts");
+    let here = Path::new(env!("CARGO_MANIFEST_DIR"));
+    generate_file(&here.join("tests/basic/main.ts"), &here.join("tests/basic"))
+}
 
-    let path = Path::new(&name);
-    let source_text = std::fs::read_to_string(path).unwrap_or_else(|err| panic!("{} not found.\n{err}", name.display()));
+fn generate_file(input: &Path, output: &Path) {
+    if !output.is_dir() {
+        panic!("{} is not a directory", output.display())
+    }
+    else {
+        std::fs::create_dir_all(output).unwrap()
+    }
+    let source_text = std::fs::read_to_string(input).unwrap_or_else(|err| panic!("{} not found.\n{err}", input.display()));
     let allocator = Allocator::default();
-    let source_type = SourceType::from_path(path).unwrap();
+    let source_type = SourceType::from_path(input).unwrap();
 
     let ret = Parser::new(&allocator, &source_text, source_type).parse();
 
@@ -57,24 +64,10 @@ fn main() {
 
     let scoping = ret.semantic.into_scoping();
 
-    let mut transform_options = if let Some(babel_options_path) = babel_options_path {
-        let babel_options_path = Path::new(&babel_options_path);
-        let babel_options = BabelOptions::from_test_path(babel_options_path);
-        TransformOptions::try_from(&babel_options).unwrap()
-    }
-    else if let Some(query) = &targets {
-        TransformOptions { env: EnvOptions::from_browserslist_query(query).unwrap(), ..TransformOptions::default() }
-    }
-    else if let Some(target) = &target {
-        TransformOptions::from_target(target).unwrap()
-    }
-    else {
-        TransformOptions::enable_all()
-    };
-
+    let mut transform_options = TransformOptions::default();
     transform_options.helper_loader.mode = HelperLoaderMode::External;
 
-    let ret = Transformer::new(&allocator, path, &transform_options).build_with_scoping(scoping, &mut program);
+    let ret = Transformer::new(&allocator, input, &transform_options).build_with_scoping(scoping, &mut program);
 
     if !ret.errors.is_empty() {
         println!("Transformer Errors:");
@@ -84,7 +77,19 @@ fn main() {
         }
     }
 
-    let printed = CodeGenerator::new().build(&program).code;
-    println!("Transformed:\n");
-    println!("{printed}");
+    let mut codegen = CodegenOptions::default();
+    codegen.single_quote = true;
+    codegen.source_map_path = Some(PathBuf::from("test.map.json"));
+    let printed = CodeGenerator::new().with_options(codegen).build(&program);
+    let mut js_file = File::create(output.join("test.js")).unwrap();
+    js_file.write_all(printed.code.as_bytes()).unwrap();
+    let mut map_file = File::create(output.join("test.map.json")).unwrap();
+    match printed.map {
+        Some(s) => {
+            map_file.write_all(s.to_json_string().as_bytes()).unwrap();
+        }
+        None => {
+            panic!("missing")
+        }
+    };
 }
