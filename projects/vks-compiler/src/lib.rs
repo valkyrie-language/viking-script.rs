@@ -20,12 +20,9 @@ use oxc_isolated_declarations::{IsolatedDeclarations, IsolatedDeclarationsOption
 use oxc_transformer::{
     DecoratorOptions, HelperLoaderMode, HelperLoaderOptions, TransformOptions, Transformer, TypeScriptOptions,
 };
-use rolldown::{
-    plugin::{
-        HookBuildStartArgs, HookNoopReturn, HookRenderChunkArgs, HookRenderChunkOutput, HookRenderChunkReturn,
-        HookResolveIdArgs, HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
-    },
-    Bundler,
+use rolldown::plugin::{
+    HookBuildStartArgs, HookNoopReturn, HookRenderChunkArgs, HookRenderChunkOutput, HookRenderChunkReturn, HookResolveIdArgs,
+    HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
 };
 use rolldown_common::{
     BundlerOptions, ESTarget, ExperimentalOptions, InputItem, MinifyOptionsObject, OutputFormat, Platform, RawMinifyOptions,
@@ -35,11 +32,8 @@ use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
     fs::File,
-    future::Future,
     io::Write,
-    net::ToSocketAddrs,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 #[derive(Clone, Debug)]
@@ -48,7 +42,7 @@ pub struct CompileOptions {
     pub release: bool,
     pub source_map: bool,
     pub target: ESTarget,
-    pub inputs: Vec<InputItem>,
+    pub entry: PathBuf,
     pub output: PathBuf,
 }
 
@@ -77,9 +71,10 @@ impl CompileOptions {
         if self.source_map { SourceMapType::File } else { SourceMapType::Hidden }
     }
     pub fn as_bundle_options(&self, platform: Platform) -> BundlerOptions {
-        let basic = BundlerOptions {
+        let mut options = BundlerOptions {
             name: Some(self.name.to_string()),
-            input: Some(self.inputs.to_vec()),
+            input: Some(vec![InputItem { name: None, import: self.entry.to_string_lossy().to_string() }]),
+            dir: Some(self.output.to_string_lossy().to_string()),
             cwd: None,
             minify: Some(self.as_minify_options()),
             treeshake: TreeshakeOptions::Boolean(true),
@@ -97,28 +92,31 @@ impl CompileOptions {
             ..Default::default()
         };
         match platform {
-            Platform::Node => BundlerOptions {
-                file: Some(self.output.join("index.node.js").to_string_lossy().to_string()),
-                platform: Some(Platform::Node),
-                format: Some(OutputFormat::Esm),
-                ..basic.clone()
-            },
-            Platform::Browser => BundlerOptions {
-                file: Some(self.output.join("index.browser.js").to_string_lossy().to_string()),
-                platform: Some(Platform::Browser),
-                format: Some(OutputFormat::Cjs),
-                ..basic.clone()
-            },
-            Platform::Neutral => BundlerOptions {
-                file: Some(self.output.join("index.js").to_string_lossy().to_string()),
-                platform: Some(Platform::Neutral),
-                format: Some(OutputFormat::App),
-                ..basic.clone()
-            },
-        }
+            Platform::Browser => {
+                options.file = Some(self.output.join("index.browser.js").to_string_lossy().to_string());
+                options.platform = Some(Platform::Browser);
+                options.format = Some(OutputFormat::Iife);
+            }
+            Platform::Node => {
+                options.file = Some(self.output.join("index.node.js").to_string_lossy().to_string());
+                options.platform = Some(Platform::Node);
+                options.format = Some(OutputFormat::Esm);
+            }
+            Platform::Neutral => {
+                options.file = Some(self.output.join("index.js").to_string_lossy().to_string());
+                options.platform = Some(Platform::Neutral);
+                options.format = Some(OutputFormat::Umd);
+            }
+        };
+        // if self.entry.len() > 1 {
+        //     options.file = None;
+        // }
+        // else {
+        //     options.dir = None;
+        // }
+        options
     }
 }
-
 
 pub struct CompileWriter<'i> {
     allocator: Allocator,
