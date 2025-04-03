@@ -17,7 +17,7 @@ exclude = ["package.json", "tests/**"]
 oxc = { version = "0.62.0", features = ["full", "serialize"] }
 oxc_isolated_declarations = { version = "0.62.0", features = [] }
 oxc_transformer = { version = "0.62.0", features = [] }
-oxc_resolver = "5.1.0"
+arcstr = "1.2.0"
 tokio = { version = "1.44.1", features = ["full"] }
 
 [dependencies.rolldown]
@@ -25,6 +25,9 @@ git = "https://github.com/rolldown/rolldown"
 features = ["serde"]
 
 [dependencies.rolldown_common]
+git = "https://github.com/rolldown/rolldown"
+
+[dependencies.rolldown_plugin_isolated_declaration]
 git = "https://github.com/rolldown/rolldown"
 
 [dev-dependencies]

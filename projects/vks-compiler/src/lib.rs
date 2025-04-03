@@ -7,6 +7,7 @@
 mod errors;
 
 pub use crate::errors::{Result, VksError, VksErrorKind};
+use arcstr::ArcStr;
 use oxc::{
     allocator::Allocator,
     ast::ast::Program,
@@ -19,17 +20,25 @@ use oxc_isolated_declarations::{IsolatedDeclarations, IsolatedDeclarationsOption
 use oxc_transformer::{
     DecoratorOptions, HelperLoaderMode, HelperLoaderOptions, TransformOptions, Transformer, TypeScriptOptions,
 };
+use rolldown::plugin::{
+    HookBuildStartArgs, HookNoopReturn, HookRenderChunkArgs, HookRenderChunkOutput, HookRenderChunkReturn, HookResolveIdArgs,
+    HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
+};
+use rolldown_common::{EmittedChunk, MinifyOptionsObject, RawMinifyOptions, ResolvedExternal, SourceMapType};
 use std::{
     borrow::Cow,
+    fmt::{Debug, Formatter},
     fs::File,
+    future::Future,
     io::Write,
+    net::ToSocketAddrs,
     path::{Path, PathBuf},
 };
 
 #[derive(Copy, Clone, Debug)]
 pub struct CompileOptions {
     pub release: bool,
-    pub source_map: Option<bool>,
+    pub source_map: bool,
 }
 
 impl CompileOptions {
@@ -43,14 +52,20 @@ impl CompileOptions {
             comments: self.release,
             annotation_comments: self.release,
             legal_comments: LegalComment::External,
-            source_map_path: match self.source_map.unwrap_or(true) {
-                true => Some(json),
-                false => None,
-            },
+            source_map_path: None,
         }
     }
+    pub fn as_minify_options(&self) -> RawMinifyOptions {
+        RawMinifyOptions::Object(MinifyOptionsObject {
+            mangle: self.release,
+            compress: self.release,
+            remove_whitespace: self.release,
+        })
+    }
+    pub fn as_source_map_options(&self) -> SourceMapType {
+        if self.source_map { SourceMapType::File } else { SourceMapType::Hidden }
+    }
 }
-
 
 pub struct CompileWriter<'i> {
     allocator: Allocator,
@@ -178,5 +193,61 @@ impl<'i> CompileWriter<'i> {
             }
         };
         Ok(())
+    }
+}
+
+pub struct VikingScriptCompilerPlugin {}
+
+impl Debug for VikingScriptCompilerPlugin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("VikingScriptCompilerPlugin")
+    }
+}
+
+impl Plugin for VikingScriptCompilerPlugin {
+    fn name(&self) -> Cow<'static, str> {
+        Cow::Borrowed("vks:compiler")
+    }
+
+    async fn build_start(&self, ctx: &PluginContext, _args: &HookBuildStartArgs<'_>) -> HookNoopReturn {
+        let data = ctx.get_module_ids();
+        println!("{data:?}");
+
+        // let files = EmittedAsset {
+        //     name: Some("emmm".to_string()),
+        //     original_file_name: Some("test.vks".to_string()),
+        //     file_name: Some(ArcStr::from("test.vks")),
+        //     source: StrOrBytes::Str("export const XX = 11;".to_string()),
+        // };
+        // let chunk = EmittedChunk {
+        //     name: Some(ArcStr::from("aaa")),
+        //     file_name: Some(ArcStr::from("bbb")),
+        //     id: r#"E:\RustroverProjects\viking-script.rs\projects\vks-compiler\tests\basic\fake.ts"#.to_string(),
+        //     importer: None,
+        // };
+        // let s = ctx.emit_chunk(chunk).await?;
+        // println!("What: {s:?}");
+        Ok(())
+    }
+
+    async fn resolve_id(&self, _ctx: &PluginContext, _args: &HookResolveIdArgs<'_>) -> HookResolveIdReturn {
+        println!("resolve_id: {:?}", _args);
+        if _args.specifier == "cccd" {
+            Ok(Some(HookResolveIdOutput {
+                id: ArcStr::from(r#"E:\RustroverProjects\viking-script.rs\projects\vks-compiler\tests\basic\fake.ts"#),
+                external: Some(ResolvedExternal::Absolute),
+                normalize_external_id: Some(true),
+                side_effects: None,
+            }))
+        }
+        else {
+            Ok(None)
+        }
+    }
+
+    async fn render_chunk(&self, _ctx: &PluginContext, args: &HookRenderChunkArgs<'_>) -> HookRenderChunkReturn {
+        // let mut magic_string = MagicString::new(&args.code);
+        println!("Render Chunk: {:?}", args);
+        Ok(Some(HookRenderChunkOutput { code: args.code.clone(), map: None }))
     }
 }

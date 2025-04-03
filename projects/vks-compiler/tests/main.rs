@@ -1,8 +1,13 @@
-use oxc_resolver::{EnforceExtension, ResolveOptions, Resolver};
-use rolldown::{Bundler, BundlerOptions, InputItem, OutputFormat, Platform, SourceMapType};
-use rolldown_common::{MinifyOptionsObject, RawMinifyOptions};
-use std::path::Path;
-use vks_compiler::{CompileOptions, VksError};
+
+use rolldown::{Bundler, BundlerOptions, InputItem, OutputFormat, Platform};
+use rolldown_common::ESTarget;
+use rolldown_plugin_isolated_declaration::IsolatedDeclarationPlugin;
+use std::{
+    fmt::Debug,
+    path::Path,
+    sync::Arc,
+};
+use vks_compiler::{CompileOptions, VikingScriptCompilerPlugin, VksError};
 
 #[test]
 fn ready() {
@@ -12,58 +17,18 @@ fn ready() {
 #[test]
 fn main() -> Result<(), VksError> {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let compiler = CompileOptions { release: false, source_map: None };
+    let compiler = CompileOptions { release: false, source_map: true };
     compiler.writer().generate(&here.join("tests/basic/index.ts"), &here.join("tests/basic/debug"))?;
-    let compiler = CompileOptions { release: true, source_map: None };
+    let compiler = CompileOptions { release: true, source_map: true };
     compiler.writer().generate(&here.join("tests/basic/index.ts"), &here.join("tests/basic/release"))?;
     Ok(())
 }
 
-#[test]
-fn test_resolve() {
-    let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let path = here.join("tests/basic");
-    let modules = here.join("tests/node_modules").canonicalize().unwrap();
-    let module_path = modules.to_string_lossy().trim_start_matches("\\\\?\\").to_string();
-    println!("{}", module_path);
-    assert!(path.is_dir(), "{path:?} must be a directory that will be resolved against.");
-    assert!(path.is_absolute(), "{path:?} must be an absolute path.",);
-
-    let options = ResolveOptions {
-        tsconfig: None,
-        alias: vec![],
-        alias_fields: vec![],
-        condition_names: vec![],
-        description_files: vec!["package.json".into()],
-        enforce_extension: EnforceExtension::Auto,
-        extension_alias: vec![],
-        exports_fields: vec![vec!["exports".into()]],
-        imports_fields: vec![vec!["imports".into()]],
-        extensions: vec![".js".into(), ".ts".into(), ".json".into()],
-        fallback: vec![],
-        fully_specified: false,
-        main_fields: vec!["main".into()],
-        main_files: vec!["index".into()],
-        modules: vec![module_path],
-        resolve_to_context: false,
-        prefer_relative: false,
-        prefer_absolute: false,
-        restrictions: vec![],
-        roots: vec![],
-        symlinks: true,
-        builtin_modules: false,
-    };
-
-    match Resolver::new(options).resolve(path, "vite") {
-        Err(error) => println!("Error: {error}"),
-        Ok(resolution) => {
-            println!("Resolved: {:?}", resolution.full_path())
-        }
-    }
-}
 
 #[tokio::test]
 async fn main22() {
+    let compiler = CompileOptions { release: false, source_map: true };
+
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
     let index = here.join("tests/basic/src/index.ts");
     let options = BundlerOptions {
@@ -73,16 +38,23 @@ async fn main22() {
             // InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
         ]),
         // dir: Some(here.join("tests/basic/dist").to_string_lossy().to_string()),
-        file: Some(here.join("tests/basic/dist/index.browser.js").to_string_lossy().to_string()),
-        platform: Some(Platform::Browser),
-        format: Some(OutputFormat::Cjs),
+        // file: Some(here.join("tests/basic/dist/index.browser.js").to_string_lossy().to_string()),
+        // platform: Some(Platform::Browser),
+        // format: Some(OutputFormat::Cjs),
+        file: Some(here.join("tests/basic/dist/index.node.js").to_string_lossy().to_string()),
+        platform: Some(Platform::Node),
+        format: Some(OutputFormat::Esm),
         cwd: None,
-        minify: Some(RawMinifyOptions::Object(MinifyOptionsObject { mangle: true, compress: true, remove_whitespace: true })),
-        sourcemap: Some(SourceMapType::File),
+        minify: Some(compiler.as_minify_options()),
+        transform: None,
+        target: Some(ESTarget::Es2015),
+        sourcemap: Some(compiler.as_source_map_options()),
         ..Default::default()
     };
-
-    let mut bundler = Bundler::new(options);
+    let mut bundler = Bundler::with_plugins(options, vec![
+        Arc::new(VikingScriptCompilerPlugin {}),
+        // Arc::new(IsolatedDeclarationPlugin { strip_internal: false }),
+    ]);
 
     let _result = bundler.write().await.unwrap();
 }
