@@ -7,31 +7,19 @@
 mod errors;
 
 pub use crate::errors::{Result, VksError, VksErrorKind};
-use arcstr::ArcStr;
 use oxc::{
-    allocator::Allocator,
-    ast::ast::Program,
-    codegen::{CodeGenerator, CodegenOptions, LegalComment},
-    parser::Parser,
-    semantic::SemanticBuilder,
-    span::SourceType,
+    allocator::Allocator
+    ,
+    codegen::{CodegenOptions, LegalComment}
+    ,
 };
-use oxc_isolated_declarations::{IsolatedDeclarations, IsolatedDeclarationsOptions};
-use oxc_transformer::{
-    DecoratorOptions, HelperLoaderMode, HelperLoaderOptions, TransformOptions, Transformer, TypeScriptOptions,
-};
-use rolldown::plugin::{
-    HookBuildStartArgs, HookNoopReturn, HookRenderChunkArgs, HookRenderChunkOutput, HookRenderChunkReturn, HookResolveIdArgs,
-    HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
-};
-use rolldown_common::{
-    BundlerOptions, ESTarget, ExperimentalOptions, InputItem, MinifyOptionsObject, OutputFormat, Platform, RawMinifyOptions,
-    ResolvedExternal, SourceMapType, TreeshakeOptions,
-};
+use rolldown::plugin::Plugin;
+use rolldown_common::{BundlerOptions, ESTarget, ExperimentalOptions, InputItem, MakeAbsoluteExternalsRelative, MinifyOptionsObject, OutputFormat, Platform, RawMinifyOptions, ResolveOptions, SourceMapType, TreeshakeOptions};
 use std::{
     borrow::Cow,
-    fmt::{Debug, Formatter},
-    fs::File,
+    fmt::{Debug, Formatter}
+    ,
+    future::Future,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -44,6 +32,7 @@ pub struct CompileOptions {
     pub target: ESTarget,
     pub entry: PathBuf,
     pub output: PathBuf,
+    pub node_modules: PathBuf,
 }
 
 impl CompileOptions {
@@ -87,8 +76,22 @@ impl CompileOptions {
                 hmr: None,
             }),
             transform: None,
+            resolve: Some(ResolveOptions {
+                alias: None,
+                alias_fields: None,
+                condition_names: None,
+                exports_fields: None,
+                extensions: None,
+                extension_alias: None,
+                main_fields: None,
+                main_files: None,
+                modules: Some(vec![self.node_modules.to_string_lossy().to_string()]),
+                symlinks: None,
+                tsconfig_filename: None,
+            }),
             target: Some(self.target),
             sourcemap: Some(self.as_source_map_options()),
+            make_absolute_externals_relative: Some(MakeAbsoluteExternalsRelative::Bool(true)),
             ..Default::default()
         };
         match platform {
@@ -154,95 +157,6 @@ impl<'i> CompileWriter<'i> {
     pub fn generate(&self, input: &Path, output: &Path) -> std::result::Result<(), VksError> {
         self.ensure_io(input, output)?;
 
-        let source_text = std::fs::read_to_string(input).unwrap_or_else(|err| panic!("{} not found.\n{err}", input.display()));
-        let source_type = SourceType::from_path(input).unwrap();
-
-        let ret = Parser::new(&self.allocator, &source_text, source_type).parse();
-
-        for error in ret.errors {
-            let error = error.with_source_code(source_text.clone());
-            println!("{error:?}");
-        }
-
-        println!("Original:\n");
-        println!("{source_text}\n");
-
-        let mut program = ret.program;
-        self.generate_dts(&program, output)?;
-
-        let ret = SemanticBuilder::new()
-            // Estimate transformer will triple scopes, symbols, references
-            .with_excess_capacity(2.0)
-            .with_scope_tree_child_ids(true)
-            .build(&program);
-
-        for error in ret.errors {
-            let error = error.with_source_code(source_text.clone());
-            println!("{error:?}");
-        }
-
-        let scoping = ret.semantic.into_scoping();
-
-        let transform_options = TransformOptions {
-            cwd: Default::default(),
-            assumptions: Default::default(),
-            typescript: TypeScriptOptions {
-                jsx_pragma: Default::default(),
-                jsx_pragma_frag: Default::default(),
-                only_remove_type_imports: false,
-                allow_namespaces: true,
-                allow_declare_fields: true,
-                optimize_const_enums: true,
-                rewrite_import_extensions: None,
-            },
-            decorator: DecoratorOptions { legacy: false, emit_decorator_metadata: true },
-            jsx: Default::default(),
-            env: Default::default(),
-            proposals: Default::default(),
-            helper_loader: HelperLoaderOptions {
-                module_name: Cow::Borrowed("@valkyrie-language/vks-runtime"),
-                mode: HelperLoaderMode::External,
-            },
-        };
-        let ret = Transformer::new(&self.allocator, input, &transform_options).build_with_scoping(scoping, &mut program);
-
-        for error in ret.errors {
-            let error = error.with_source_code(source_text.clone());
-            println!("{error:?}");
-        }
-
-        let printed =
-            CodeGenerator::new().with_options(self.options.as_codegen_options(PathBuf::from("index.js.map"))).build(&program);
-        let mut js_file = File::create(output.join("index.js")).unwrap();
-        js_file.write_all(printed.code.as_bytes()).unwrap();
-        let mut map_file = File::create(output.join("index.js.map")).unwrap();
-        match printed.map {
-            Some(s) => {
-                map_file.write_all(s.to_json_string().as_bytes()).unwrap();
-            }
-            None => {
-                panic!("missing")
-            }
-        };
-        Ok(())
-    }
-    fn generate_dts<'a>(&self, input: &Program<'a>, output: &Path) -> std::result::Result<(), VksError> {
-        let id_ret =
-            IsolatedDeclarations::new(&self.allocator, IsolatedDeclarationsOptions { strip_internal: true }).build(input);
-        let generated = CodeGenerator::new()
-            .with_options(self.options.as_codegen_options(PathBuf::from("../index.ts")))
-            .build(&id_ret.program);
-        let mut dts_file = File::create(output.join("index.d.ts"))?;
-        dts_file.write_all(generated.code.as_bytes())?;
-        let mut map_file = File::create(output.join("index.d.ts.map"))?;
-        match generated.map {
-            Some(s) => {
-                map_file.write_all(s.to_json_string().as_bytes())?;
-            }
-            None => {
-                panic!("missing")
-            }
-        };
         Ok(())
     }
 }
@@ -258,47 +172,5 @@ impl Debug for VikingScriptCompilerPlugin {
 impl Plugin for VikingScriptCompilerPlugin {
     fn name(&self) -> Cow<'static, str> {
         Cow::Borrowed("vks:compiler")
-    }
-
-    async fn build_start(&self, ctx: &PluginContext, _args: &HookBuildStartArgs<'_>) -> HookNoopReturn {
-        let data = ctx.get_module_ids();
-        println!("{data:?}");
-
-        // let files = EmittedAsset {
-        //     name: Some("emmm".to_string()),
-        //     original_file_name: Some("test.vks".to_string()),
-        //     file_name: Some(ArcStr::from("test.vks")),
-        //     source: StrOrBytes::Str("export const XX = 11;".to_string()),
-        // };
-        // let chunk = EmittedChunk {
-        //     name: Some(ArcStr::from("aaa")),
-        //     file_name: Some(ArcStr::from("bbb")),
-        //     id: r#"E:\RustroverProjects\viking-script.rs\projects\vks-compiler\tests\basic\fake.ts"#.to_string(),
-        //     importer: None,
-        // };
-        // let s = ctx.emit_chunk(chunk).await?;
-        // println!("What: {s:?}");
-        Ok(())
-    }
-
-    async fn resolve_id(&self, _ctx: &PluginContext, _args: &HookResolveIdArgs<'_>) -> HookResolveIdReturn {
-        println!("resolve_id: {:?}", _args);
-        if _args.specifier == "cccd" {
-            Ok(Some(HookResolveIdOutput {
-                id: ArcStr::from(r#"E:\RustroverProjects\viking-script.rs\projects\vks-compiler\tests\basic\fake.ts"#),
-                external: Some(ResolvedExternal::Absolute),
-                normalize_external_id: Some(true),
-                side_effects: None,
-            }))
-        }
-        else {
-            Ok(None)
-        }
-    }
-
-    async fn render_chunk(&self, _ctx: &PluginContext, args: &HookRenderChunkArgs<'_>) -> HookRenderChunkReturn {
-        // let mut magic_string = MagicString::new(&args.code);
-        println!("Render Chunk: {:?}", args);
-        Ok(Some(HookRenderChunkOutput { code: args.code.clone(), map: None }))
     }
 }

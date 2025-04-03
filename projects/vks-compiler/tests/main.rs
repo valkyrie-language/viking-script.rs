@@ -1,5 +1,5 @@
 use rolldown::{Bundler, BundlerOptions, InputItem, OutputFormat, Platform};
-use rolldown_common::{ExperimentalOptions, TreeshakeOptions};
+use rolldown_common::{ExperimentalOptions, SourceMapType, TreeshakeOptions};
 use std::{fmt::Debug, path::Path, sync::Arc};
 use vks_compiler::{CompileOptions, VikingScriptCompilerPlugin, VksError};
 
@@ -18,8 +18,8 @@ async fn main22() {
         target: Default::default(),
         entry: here.join("tests/basic/src/index.ts"),
         output: here.join("tests/basic/dist"),
+        node_modules: Default::default(),
     };
-
     let mut bundler = Bundler::with_plugins(compiler.as_bundle_options(Platform::Browser), vec![
         Arc::new(VikingScriptCompilerPlugin {}),
     ]);

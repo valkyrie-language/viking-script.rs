@@ -14,9 +14,11 @@ edition = "2021"
 exclude = ["package.json", "tests/**"]
 
 [dependencies]
-oxc = { version = "0.62.0", features = ["full", "serialize"] }
-oxc_isolated_declarations = { version = "0.62.0", features = [] }
-oxc_transformer = { version = "0.62.0", features = [] }
+clap = { version = "4.5.35", features = ["derive"] }
+oxc = { version = "0.61.2", features = ["full", "serialize"] }
+#oxc_isolated_declarations = { version = "0.62.0", features = [] }
+#oxc_transformer = { version = "0.62.0", features = [] }
+#oxc_sourcemap = { version = "3.0.0", features = [] }
 arcstr = "1.2.0"
 tokio = { version = "1.44.1", features = ["full"] }
 
