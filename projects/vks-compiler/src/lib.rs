@@ -20,11 +20,17 @@ use oxc_isolated_declarations::{IsolatedDeclarations, IsolatedDeclarationsOption
 use oxc_transformer::{
     DecoratorOptions, HelperLoaderMode, HelperLoaderOptions, TransformOptions, Transformer, TypeScriptOptions,
 };
-use rolldown::plugin::{
-    HookBuildStartArgs, HookNoopReturn, HookRenderChunkArgs, HookRenderChunkOutput, HookRenderChunkReturn, HookResolveIdArgs,
-    HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
+use rolldown::{
+    plugin::{
+        HookBuildStartArgs, HookNoopReturn, HookRenderChunkArgs, HookRenderChunkOutput, HookRenderChunkReturn,
+        HookResolveIdArgs, HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
+    },
+    Bundler,
 };
-use rolldown_common::{EmittedChunk, MinifyOptionsObject, RawMinifyOptions, ResolvedExternal, SourceMapType};
+use rolldown_common::{
+    BundlerOptions, ESTarget, ExperimentalOptions, InputItem, MinifyOptionsObject, OutputFormat, Platform, RawMinifyOptions,
+    ResolvedExternal, SourceMapType, TreeshakeOptions,
+};
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
@@ -33,12 +39,15 @@ use std::{
     io::Write,
     net::ToSocketAddrs,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct CompileOptions {
+    pub name: String,
     pub release: bool,
     pub source_map: bool,
+    pub target: ESTarget,
 }
 
 impl CompileOptions {
@@ -65,6 +74,90 @@ impl CompileOptions {
     pub fn as_source_map_options(&self) -> SourceMapType {
         if self.source_map { SourceMapType::File } else { SourceMapType::Hidden }
     }
+    pub fn as_bundle_options(&self, platform: Platform) -> BundlerOptions {
+        let basic = BundlerOptions {
+            name: Some(compiler.name),
+            input: Some(vec![
+                InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
+                // InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
+            ]),
+            cwd: None,
+            minify: Some(compiler.as_minify_options()),
+            treeshake: TreeshakeOptions::Boolean(true),
+            experimental: Some(ExperimentalOptions {
+                strict_execution_order: None,
+                disable_live_bindings: None,
+                vite_mode: None,
+                resolve_new_url_to_asset: None,
+                incremental_build: None,
+                hmr: None,
+            }),
+            transform: None,
+            target: Some(compiler.target),
+            sourcemap: Some(compiler.as_source_map_options()),
+            ..Default::default()
+        };
+        match platform {
+            Platform::Node => BundlerOptions {
+                file: Some(here.join("tests/basic/dist/index.node.js").to_string_lossy().to_string()),
+                platform: Some(Platform::Node),
+                format: Some(OutputFormat::Esm),
+                ..basic.clone()
+            },
+            Platform::Browser => BundlerOptions {
+                file: Some(here.join("tests/basic/dist/index.browser.js").to_string_lossy().to_string()),
+                platform: Some(Platform::Browser),
+                format: Some(OutputFormat::Cjs),
+                ..basic.clone()
+            },
+            Platform::Neutral => BundlerOptions {
+                file: Some(here.join("tests/basic/dist/index.node.js").to_string_lossy().to_string()),
+                platform: Some(Platform::Node),
+                format: Some(OutputFormat::Esm),
+                ..basic.clone()
+            },
+        }
+    }
+}
+#[tokio::test]
+async fn main22() {
+    let compiler = CompileOptions { name: "ttt".to_string(), release: false, source_map: true, target: Default::default() };
+
+    let here = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let index = here.join("tests/basic/src/index.ts");
+    let basic = BundlerOptions {
+        name: Some(compiler.name),
+        input: Some(vec![
+            InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
+            // InputItem { name: Some("index.ts".to_string()), import: index.to_string_lossy().to_string() },
+        ]),
+        cwd: None,
+        minify: Some(compiler.as_minify_options()),
+        treeshake: TreeshakeOptions::Boolean(true),
+        experimental: Some(ExperimentalOptions {
+            strict_execution_order: None,
+            disable_live_bindings: None,
+            vite_mode: None,
+            resolve_new_url_to_asset: None,
+            incremental_build: None,
+            hmr: None,
+        }),
+        transform: None,
+        target: Some(compiler.target),
+        sourcemap: Some(compiler.as_source_map_options()),
+        ..Default::default()
+    };
+
+    let mut bundler = Bundler::with_plugins(browser, vec![
+        Arc::new(VikingScriptCompilerPlugin {}),
+        // Arc::new(IsolatedDeclarationPlugin { strip_internal: false }),
+    ]);
+    let _result = bundler.write().await.unwrap();
+    let mut bundler = Bundler::with_plugins(node, vec![
+        Arc::new(VikingScriptCompilerPlugin {}),
+        // Arc::new(IsolatedDeclarationPlugin { strip_internal: false }),
+    ]);
+    let _result = bundler.write().await.unwrap();
 }
 
 pub struct CompileWriter<'i> {
