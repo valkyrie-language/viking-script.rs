@@ -1,1 +1,0 @@
-{"version":3,"names":["a: number"],"sources":["index.js.map"],"sourcesContent":["export {E} from \"./needed\"\n\n// 测试注释\nexport const a: number = 1\n\n// 测试注释\nexport function b() {\n    return a + 1\n}"],"mappings":"AAAA,SAAQ,SAAQ;AAGhB,OAAO,MAAMA,IAAY;AAGzB,OAAO,SAAS,IAAI;AAChB,QAAO,IAAI;AACd"}

@@ -1,4 +1,4 @@
-import {a} from "./release/index"
+import {a} from "./dist/index"
 
 
 console.log(a + 1)
