@@ -5,6 +5,7 @@ default-members = [
     "projects/vks-compiler",
 ]
 exclude = [
+    "projects/vks-runtime",
     "projects/.DS_Store",
 ]
 

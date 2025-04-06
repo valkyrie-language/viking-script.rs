@@ -1,6 +1,9 @@
-use std::borrow::Cow;
-use std::fmt::{Debug, Formatter};
 use rolldown::plugin::Plugin;
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Formatter}
+    ,
+};
 
 pub struct VikingScriptCompilerPlugin {}
 
