@@ -11,7 +11,7 @@ fn ready() {
 #[tokio::test]
 async fn compile22() {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let folder = here.join("tests/basic").canonicalize().unwrap();
+    let folder = here.join("tests/basic");
     println!("Path: {:?}", folder.display());
     
     let compiler = CompileOptions {
@@ -27,7 +27,7 @@ async fn compile22() {
     println!("Full: {:#?}", full);
     let mut bundler = Bundler::with_plugins(compiler.as_bundle_options(Platform::Browser), vec![
         // Arc::new(VikingScriptCompilerPlugin {}),
-        // Arc::new(IsolatedDeclarationPlugin { strip_internal: true }),
+        Arc::new(IsolatedDeclarationPlugin { strip_internal: true }),
     ]);
     let _result = bundler.write().await.unwrap();
     // let mut bundler =
