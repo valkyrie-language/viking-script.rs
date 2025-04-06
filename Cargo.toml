@@ -6,6 +6,7 @@ default-members = [
 ]
 exclude = [
     "projects/vks-runtime",
+    "projects/vks-template",
     "projects/.DS_Store",
 ]
 
