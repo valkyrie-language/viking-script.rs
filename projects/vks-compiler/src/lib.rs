@@ -4,14 +4,10 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/oovm/shape-rs/dev/projects/images/Trapezohedron.svg")]
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/oovm/shape-rs/dev/projects/images/Trapezohedron.svg")]
 
-mod configs;
+
 mod errors;
-mod plugins;
-mod writers;
+mod ast;
 
 pub use crate::{
-    configs::CompileOptions,
     errors::{Result, VksError, VksErrorKind},
-    plugins::VikingScriptCompilerPlugin,
-    writers::CompileWriter,
 };
