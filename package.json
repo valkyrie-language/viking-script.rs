@@ -8,5 +8,8 @@
         "reset": "git reset Head~ --soft",
         "u": "cargo upgrade --workspace"
     },
-    "packageManager": "pnpm@9.15.0"
+    "packageManager": "pnpm@9.15.0",
+    "dependencies": {
+        "vitest": "^3.1.3"
+    }
 }

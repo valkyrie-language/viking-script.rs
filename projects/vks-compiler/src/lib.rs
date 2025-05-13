@@ -6,8 +6,13 @@
 
 
 mod errors;
-mod ast;
+pub mod ast;
 
 pub use crate::{
     errors::{Result, VksError, VksErrorKind},
 };
+
+/// 将Viking脚本转换为JavaScript代码
+pub fn compile_to_js(program: &ast::VikingProgram) -> String {
+    ast::transform::transform_to_js(program)
+}

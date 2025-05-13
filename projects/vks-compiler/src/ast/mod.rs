@@ -2,6 +2,9 @@ use arcstr::ArcStr;
 use oxc_span::Span;
 use std::ops::Range;
 
+pub mod effect;
+pub mod program;
+pub mod transform;
 
 #[derive(Clone, Debug)]
 pub struct VikingProgram {
@@ -18,17 +21,31 @@ pub enum VikingStatement {
 
 #[derive(Clone, Debug)]
 pub struct TryHandlerStatement {
-    span: Span,
-    file: ArcStr,
+    /// Try块中的语句
+    pub try_body: Vec<VikingStatement>,
+    /// Handler块中的Case
+    pub handler_cases: Vec<crate::ast::effect::EffectCase>,
+    /// 源码位置
+    pub span: Span,
+    /// 所在文件
+    pub file: ArcStr,
 }
 #[derive(Clone, Debug)]
 pub struct RaiseStatement {
-    span: Span,
-    file: ArcStr,
+    /// 效应调用
+    pub effect: crate::ast::effect::EffectCall,
+    /// 源码位置
+    pub span: Span,
+    /// 所在文件
+    pub file: ArcStr,
 }
 
 #[derive(Clone, Debug)]
 pub struct ResumeStatement {
-    span: Span,
-    file: ArcStr,
+    /// 恢复参数
+    pub argument: Option<String>,
+    /// 源码位置
+    pub span: Span,
+    /// 所在文件
+    pub file: ArcStr,
 }
