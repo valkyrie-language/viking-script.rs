@@ -1,71 +1,141 @@
-//! 语言特性模块
+//! 语言定义模块
 //!
-//! 提供了处理语言特定标记和类型转换的trait和实现。
+//! 提供语言定义的抽象和实现，支持自定义规则和语法。
 
-/// 语言trait，用于将u32标记转换为具体的kind和tag
+use std::rc::Rc;
+
+use crate::peg::ast::Node;
+use crate::peg::parser::ParserState;
+use crate::errors::Result;
+
+/// 语言定义trait
 pub trait Language {
-    /// 语言特定的节点类型
-    type Kind;
-    
-    /// 从u32标记获取kind
-    fn kind_from_mark(&self, mark: u32) -> Self::Kind;
-    
-    /// 从u32标记获取tag
-    fn tag_from_mark(&self, mark: u32) -> Option<&str>;
-    
-    /// 创建一个新的标记
-    fn create_mark(&self, kind: &Self::Kind, tag: Option<&str>) -> u32;
-    
-    /// 获取kind的字符串表示
-    fn kind_to_string(&self, kind: &Self::Kind) -> String;
-    
     /// 解析入口规则
-    fn parse_entry(&self, state: &mut crate::peg::parser::ParserState) -> crate::peg::error::Result<Option<crate::peg::ast::Node>>;
+    fn parse_entry(&self, state: &mut ParserState) -> Result<Option<Node>>;
     
     /// 获取语言名称
-    fn name(&self) -> &str {
-        "Generic Language"
-    }
+    fn name(&self) -> &str;
     
-    /// 获取语言版本
-    fn version(&self) -> &str {
-        "1.0.0"
-    }
-}
-
-/// 全局配置，用于存储解析器的全局变量
-pub struct GlobalConfig {
-    /// 配置项映射
-    pub config: std::collections::HashMap<String, String>,
-}
-
-impl GlobalConfig {
-    /// 创建新的全局配置
-    pub fn new() -> Self {
-        Self {
-            config: std::collections::HashMap::new(),
+    /// 获取语言ID
+    fn id(&self) -> u32;
+    
+    /// 解析空白字符
+    fn parse_whitespace(&self, state: &mut ParserState) -> Result<Option<Node>> {
+        // 默认实现：匹配空格和制表符
+        let start = state.position();
+        let mut current = start;
+        
+        while let Some(next) = state.input().match_char(' ', current).or_else(|| state.input().match_char('\t', current)) {
+            current = next;
+        }
+        
+        if current > start {
+            // 创建空白节点
+            let node = state.create_leaf_node(self.id(), 0, 0, start, current);
+            Ok(Some(node))
+        } else {
+            Ok(None)
         }
     }
     
-    /// 设置配置项
-    pub fn set(&mut self, key: &str, value: &str) -> &mut Self {
-        self.config.insert(key.to_string(), value.to_string());
-        self
+    /// 解析换行符
+    fn parse_newline(&self, state: &mut ParserState) -> Result<Option<Node>> {
+        // 默认实现：匹配\n或\r\n
+        let start = state.position();
+        
+        if let Some(next) = state.input().match_str("\r\n", start) {
+            let node = state.create_leaf_node(self.id(), 0, 0, start, next);
+            Ok(Some(node))
+        } else if let Some(next) = state.input().match_char('\n', start) {
+            let node = state.create_leaf_node(self.id(), 0, 0, start, next);
+            Ok(Some(node))
+        } else {
+            Ok(None)
+        }
     }
     
-    /// 获取配置项
-    pub fn get(&self, key: &str) -> Option<&str> {
-        self.config.get(key).map(|s| s.as_str())
+    /// 解析注释
+    fn parse_comment(&self, state: &mut ParserState) -> Result<Option<Node>> {
+        // 默认实现：无注释
+        Ok(None)
     }
     
-    /// 获取配置项，如果不存在则返回默认值
-    pub fn get_or(&self, key: &str, default: &str) -> &str {
-        self.get(key).unwrap_or(default)
+    /// 解析忽略内容（空白、换行、注释）
+    fn parse_ignored(&self, state: &mut ParserState) -> Result<Option<Node>> {
+        let start = state.position();
+        let mut current = start;
+        let mut found = false;
+        
+        loop {
+            let mut advanced = false;
+            
+            // 尝试匹配空白
+            if let Ok(Some(node)) = self.parse_whitespace(state) {
+                current = node.end;
+                state.set_position(current);
+                advanced = true;
+                found = true;
+            }
+            
+            // 尝试匹配换行
+            if let Ok(Some(node)) = self.parse_newline(state) {
+                current = node.end;
+                state.set_position(current);
+                advanced = true;
+                found = true;
+            }
+            
+            // 尝试匹配注释
+            if let Ok(Some(node)) = self.parse_comment(state) {
+                current = node.end;
+                state.set_position(current);
+                advanced = true;
+                found = true;
+            }
+            
+            if !advanced {
+                break;
+            }
+        }
+        
+        if found {
+            let node = state.create_leaf_node(self.id(), 0, 0, start, current);
+            Ok(Some(node))
+        } else {
+            Ok(None)
+        }
     }
 }
 
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self::new()
+/// 基本语言实现
+pub struct BasicLanguage {
+    /// 语言名称
+    name: String,
+    /// 语言ID
+    id: u32,
+}
+
+impl BasicLanguage {
+    /// 创建一个新的基本语言
+    pub fn new(name: impl Into<String>, id: u32) -> Self {
+        Self {
+            name: name.into(),
+            id,
+        }
+    }
+}
+
+impl Language for BasicLanguage {
+    fn parse_entry(&self, _state: &mut ParserState) -> Result<Option<Node>> {
+        // 基本语言没有入口规则
+        Ok(None)
+    }
+    
+    fn name(&self) -> &str {
+        &self.name
+    }
+    
+    fn id(&self) -> u32 {
+        self.id
     }
 }
