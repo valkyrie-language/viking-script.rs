@@ -1,0 +1,11 @@
+{
+  "name": "vks-runtime",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "vitest": "^3.1.3"
+  }
+}
