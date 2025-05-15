@@ -1,10 +1,14 @@
-use crate::error::{CompileError, CompileErrorKind};
-use crate::instruction::{Instruction, RuleId, TagId};
 use crate::parser::CustomParser; // Will be defined in parser.rs
+use crate::{
+    errors::{CompileError, CompileErrorKind},
+    instruction::{Instruction, RuleId, TagId},
+};
 use fancy_regex::Regex as FancyRegex;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap, HashSet};
-use crate::CustomParser;
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    fmt::{Debug, Formatter},
+};
 // HashMap for faster lookups during compile
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,18 +36,28 @@ impl Default for GrammarConfig {
 
 /// Represents a part of a rule during building.
 /// This is the Abstract Syntax Tree (AST) for grammar definitions.
-#[derive(Debug, Clone)] // Not typically serialized itself, only the compiled Instructions
+#[derive(Debug, Clone, Eq, PartialEq)] // Not typically serialized itself, only the compiled Instructions
 pub enum Rule {
     /// Reference to another rule by name
-    RuleRef { name: String },
+    RuleRef {
+        name: String,
+    },
     /// Literal string to match, e.g., "+", "keyword"
-    Literal { text: String },
+    Literal {
+        text: String,
+    },
     /// Regex string to match
-    Regex { regex_str: String }, // Store as string, compile later
+    Regex {
+        regex_str: String,
+    }, // Store as string, compile later
     /// Sequence of parts, all must match in order
-    Sequence { rules: Vec<Rule> },
+    Sequence {
+        rules: Vec<Rule>,
+    },
     /// Choice of parts, first one that matches is chosen
-    Choice { rules: Vec<Rule> },
+    Choice {
+        rules: Vec<Rule>,
+    },
     /// Repetition of a part
     Repeats {
         rule: Box<Rule>,
@@ -56,9 +70,14 @@ pub enum Rule {
         negative: bool,
     },
     /// Assigns a named tag to the resulting node if this part matches
-    Tagged { name: String, rule: Box<Rule> },
+    Tagged {
+        name: String,
+        rule: Box<Rule>,
+    },
     /// Read global variable from config (resolved to its value as a Literal or special instruction)
-    Variable { name: String },
+    Variable {
+        name: String,
+    },
     /// A special rule that matches whitespace (user overrideable)
     Whitespace,
     /// A special rule that matches newline (user overrideable)
@@ -72,15 +91,23 @@ pub enum Rule {
     /// A special rule matching end of file
     EndOfFile,
     /// A pinned rule. If it matches, no backtracking for the current Choice.
-    Pinned { rule: Box<Rule> },
+    Pinned {
+        rule: Box<Rule>,
+    },
     /// Trap errors from this rule.
-    Trap { error_key: String, rule: Box<Rule> }, // error_key could map to specific error data
+    Trap {
+        error_key: String,
+        rule: Box<Rule>,
+    }, // error_key could map to specific errors data
     // External custom rule reference by name
-    ExternalRef { name: String },
+    ExternalRef {
+        name: String,
+    },
     // Placeholder for Pratt definition; actual definition via add_pratt_rule
-    PrattRulePlaceholder { name: String },
+    PrattRulePlaceholder {
+        name: String,
+    },
 }
-
 
 // Information about a Pratt-style expression rule
 #[derive(Debug, Clone)]
@@ -93,12 +120,16 @@ pub struct PrattRuleConfig {
     pub primary_rule_id: Option<RuleId>,
 }
 
-#[derive(Debug, Clone)]
-pub enum PrattOperatorType { Infix, Prefix, Postfix }
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum OperatorType {
+    Infix,
+    Prefix,
+    Postfix,
+}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PrattOperator {
-    pub op_type: PrattOperatorType,
+    pub op_type: OperatorType,
     pub rule: Rule, // The rule that matches the operator token(s)
     pub precedence: u8,
     pub associativity: Option<Associativity>, // None for prefix/postfix or non-assoc infix
@@ -109,7 +140,10 @@ pub struct PrattOperator {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Associativity { Left, Right }
+pub enum Associativity {
+    Left,
+    Right,
+}
 
 
 pub struct GrammarBuilder {
@@ -125,7 +159,7 @@ pub struct GrammarBuilder {
     rule_name_to_id: HashMap<String, RuleId>,
     tag_name_to_id: HashMap<String, TagId>,
     custom_name_to_id: HashMap<String, RuleId>,
-    trap_key_to_id: HashMap<String, RuleId>, // Mapping trap error keys to RuleIds
+    trap_key_to_id: HashMap<String, RuleId>, // Mapping trap errors keys to RuleIds
 }
 
 impl GrammarBuilder {
@@ -135,8 +169,8 @@ impl GrammarBuilder {
             rule_definitions: BTreeMap::new(),
             custom_parsers_by_name: BTreeMap::new(),
             pratt_rules_config: BTreeMap::new(),
-            next_rule_id: 1, // 0 might be reserved for invalid/null
-            next_tag_id: 1,  // 0 for no-tag
+            next_rule_id: 1,   // 0 might be reserved for invalid/null
+            next_tag_id: 1,    // 0 for no-tag
             next_custom_id: 1, // Separate ID space, but reusing RuleId for now
             rule_name_to_id: HashMap::new(),
             tag_name_to_id: HashMap::new(),
@@ -146,10 +180,7 @@ impl GrammarBuilder {
     }
 
     pub fn with_config(config: GrammarConfig) -> Self {
-        Self {
-            config,
-            ..Self::new()
-        }
+        Self { config, ..Self::new() }
     }
 
     pub fn config_mut(&mut self) -> &mut GrammarConfig {
@@ -258,36 +289,30 @@ impl GrammarBuilder {
                         message: format!("Rule '{}' referenced but not defined.", name),
                     });
                 }
-                let id = self.rule_name_to_id.get(name).cloned().ok_or_else(|| CompileError{
+                let id = self.rule_name_to_id.get(name).cloned().ok_or_else(|| CompileError {
                     kind: CompileErrorKind::UndefinedRule(name.clone()), // Should have been caught by assign_rule_id
                     message: format!("Rule '{}' ID not found after pre-scan.", name),
                 })?;
                 // Check if it's a Pratt rule, if so, use PrattExpression instruction
                 if self.pratt_rules_config.contains_key(name) {
                     Ok(Instruction::PrattExpression { rule_id: id })
-                } else {
+                }
+                else {
                     Ok(Instruction::Rule { id })
                 }
             }
             Rule::Literal { text } => Ok(Instruction::Literal { text: text.clone() }),
             Rule::Regex { regex_str } => FancyRegex::new(regex_str)
                 .map(|regex| Instruction::Regex { regex })
-                .map_err(|e| CompileError {
-                    kind: CompileErrorKind::InvalidRegex(regex_str.clone()),
-                    message: e.to_string(),
-                }),
+                .map_err(|e| CompileError { kind: CompileErrorKind::InvalidRegex(regex_str.clone()), message: e.to_string() }),
             Rule::Sequence { rules } => {
-                let compiled_rules = rules
-                    .iter()
-                    .map(|r| self.compile_rule(r, defined_rules))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let compiled_rules =
+                    rules.iter().map(|r| self.compile_rule(r, defined_rules)).collect::<Result<Vec<_>, _>>()?;
                 Ok(Instruction::Sequence { rules: compiled_rules })
             }
             Rule::Choice { rules } => {
-                let compiled_rules = rules
-                    .iter()
-                    .map(|r| self.compile_rule(r, defined_rules))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let compiled_rules =
+                    rules.iter().map(|r| self.compile_rule(r, defined_rules)).collect::<Result<Vec<_>, _>>()?;
                 Ok(Instruction::Choice { rules: compiled_rules })
             }
             Rule::Repeats { rule, min, max } => {
@@ -300,18 +325,12 @@ impl GrammarBuilder {
             }
             Rule::Lookahead { rule, negative } => {
                 let compiled_rule = self.compile_rule(rule, defined_rules)?;
-                Ok(Instruction::Lookahead {
-                    rule: Box::new(compiled_rule),
-                    negative: *negative,
-                })
+                Ok(Instruction::Lookahead { rule: Box::new(compiled_rule), negative: *negative })
             }
             Rule::Tagged { name, rule } => {
                 let tag_id = self.assign_tag_id(name);
                 let compiled_rule = self.compile_rule(rule, defined_rules)?;
-                Ok(Instruction::Tagged {
-                    id: tag_id,
-                    rule: Box::new(compiled_rule),
-                })
+                Ok(Instruction::Tagged { id: tag_id, rule: Box::new(compiled_rule) })
             }
             Rule::Variable { name } => {
                 // Variables are substituted at compile time with a literal,
@@ -346,7 +365,7 @@ impl GrammarBuilder {
                 // and result in an Instruction::PrattExpression when referenced.
                 Err(CompileError {
                     kind: CompileErrorKind::PrattError("PrattRulePlaceholder should not be compiled directly.".to_string()),
-                    message: "Internal error".to_string()
+                    message: "Internal errors".to_string(),
                 })
             }
         }
@@ -357,24 +376,27 @@ impl GrammarBuilder {
         let mut compiled_instructions = BTreeMap::new(); // RuleId -> Instruction
 
         // Pre-scan to assign IDs to all rule names (regular and Pratt)
-        for name in self.rule_definitions.keys() {
-            self.assign_rule_id(name);
+        let rules: Vec<_> = self.rule_definitions.keys().cloned().collect();
+        for name in rules {
+            self.assign_rule_id(&name);
         }
-        for name in self.pratt_rules_config.keys() {
-            self.assign_rule_id(name); // Pratt rules also get a main RuleId
+        let pratt_rules: Vec<_> = self.pratt_rules_config.keys().cloned().collect();
+        for name in pratt_rules {
+            self.assign_rule_id(&name); // Pratt rules also get a main RuleId
         }
         // Pre-scan to assign IDs to custom rule names
-        for name in self.custom_parsers_by_name.keys() {
-            self.assign_custom_id(name);
+        let custom_rules: Vec<_> = self.custom_parsers_by_name.keys().cloned().collect();
+        for name in custom_rules {
+            self.assign_custom_id(&name);
         }
 
         let defined_rules: HashSet<String> = self.rule_definitions.keys().cloned().collect();
         let pratt_configs = self.pratt_rules_config.clone(); // Clone to avoid borrow checker issues
 
         // Compile regular rules
-        for (name, rule_ast) in &self.rule_definitions {
-            let rule_id = *self.rule_name_to_id.get(name).unwrap(); // Should exist from pre-scan
-            match self.compile_rule(rule_ast, &defined_rules) {
+        for (name, rule_ast) in self.rule_definitions.clone() {
+            let rule_id = *self.rule_name_to_id.get(&name).unwrap(); // Should exist from pre-scan
+            match self.compile_rule(&rule_ast, &defined_rules) {
                 Ok(instr) => {
                     compiled_instructions.insert(rule_id, instr);
                 }
@@ -392,7 +414,10 @@ impl GrammarBuilder {
                 Some(id) => pratt_config.primary_rule_id = Some(*id),
                 None => errors.push(CompileError {
                     kind: CompileErrorKind::UndefinedRule(pratt_config.primary_expression_rule_name.clone()),
-                    message: format!("Primary expression rule '{}' for Pratt rule '{}' not found.", pratt_config.primary_expression_rule_name, pratt_name),
+                    message: format!(
+                        "Primary expression rule '{}' for Pratt rule '{}' not found.",
+                        pratt_config.primary_expression_rule_name, pratt_name
+                    ),
                 }),
             }
             for op in &mut pratt_config.operators {
@@ -417,7 +442,6 @@ impl GrammarBuilder {
             compiled_pratt_configs.insert(pratt_rule_id, pratt_config);
         }
 
-
         if !errors.is_empty() {
             return Err(errors);
         }
@@ -433,7 +457,6 @@ impl GrammarBuilder {
         for (name, id) in &self.rule_name_to_id {
             rule_id_to_name.insert(*id, name.clone());
         }
-
 
         Ok(GrammarInfo {
             config: self.config,
@@ -456,20 +479,51 @@ impl Default for GrammarBuilder {
     }
 }
 
-
-#[derive(Debug, Clone)]
 pub struct GrammarInfo {
     pub config: GrammarConfig,
     /// Compiled instructions, mapping RuleId to its main Instruction body
     pub instructions_map: BTreeMap<RuleId, Instruction>,
-    pub rule_name_to_id: HashMap<String, RuleId>, // For quick lookup by name
-    pub rule_id_to_name: BTreeMap<RuleId, String>, // For debugging, error messages
+    pub rule_name_to_id: HashMap<String, RuleId>,  // For quick lookup by name
+    pub rule_id_to_name: BTreeMap<RuleId, String>, // For debugging, errors messages
     pub tag_name_to_id: HashMap<String, TagId>,
-    pub tag_id_to_name: BTreeMap<TagId, String>, // For debugging
+    pub tag_id_to_name: BTreeMap<TagId, String>,        // For debugging
     pub custom_parsers: BTreeMap<String, CustomParser>, // Name to function
-    pub custom_name_to_id: HashMap<String, RuleId>, // Custom rule name to its ID
-    pub pratt_configs: BTreeMap<RuleId, PrattRuleConfig>, // RuleId of pratt rule to its config
-    // Potentially:
-    // pub trap_id_to_key: BTreeMap<RuleId, String>,
-    // pub start_rule_id: Option<RuleId>, (conventionally the first rule added or a specific one)
+    pub custom_name_to_id: HashMap<String, RuleId>,     // Custom rule name to its ID
+    pub pratt_configs: BTreeMap<RuleId, PrattRuleConfig>, /* RuleId of pratt rule to its config
+                                                         * Potentially:
+                                                         * pub trap_id_to_key: BTreeMap<RuleId, String>,
+                                                         * pub start_rule_id: Option<RuleId>, (conventionally the first rule added or a specific one) */
+}
+
+impl Clone for GrammarInfo {
+    fn clone(&self) -> Self {
+        Self {
+            config: Default::default(),
+            instructions_map: Default::default(),
+            rule_name_to_id: Default::default(),
+            rule_id_to_name: Default::default(),
+            tag_name_to_id: Default::default(),
+            tag_id_to_name: Default::default(),
+            custom_parsers: Default::default(),
+            custom_name_to_id: Default::default(),
+            pratt_configs: Default::default(),
+        }
+    }
+}
+
+
+impl Debug for GrammarInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GrammarInfo")
+            .field("config", &self.config)
+            .field("instructions_map", &self.instructions_map)
+            .field("rule_name_to_id", &self.rule_name_to_id)
+            .field("rule_id_to_name", &self.rule_id_to_name)
+            .field("tag_name_to_id", &self.tag_name_to_id)
+            .field("tag_id_to_name", &self.tag_id_to_name)
+            // .field("custom_parsers", &self.custom_parsers)
+            .field("custom_name_to_id", &self.custom_name_to_id)
+            .field("pratt_configs", &self.pratt_configs)
+            .finish()
+    }
 }

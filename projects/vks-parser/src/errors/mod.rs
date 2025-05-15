@@ -1,7 +1,6 @@
-use crate::input::InputOffset;
+use crate::inputs::InputOffset;
 use crate::instruction::RuleId;
 use std::fmt;
-use crate::InputOffset;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompileErrorKind {
@@ -54,10 +53,10 @@ pub enum ParseErrorKind {
         custom_id: RuleId,
         at: InputOffset,
     },
-    EndOfFileExpected { // Expected EOF, but found more input
+    EndOfFileExpected { // Expected EOF, but found more inputs
         at: InputOffset,
     },
-    UnexpectedEOF { // Expected more input, but found EOF
+    UnexpectedEOF { // Expected more inputs, but found EOF
         at: InputOffset,
         // expected: Option<String>, // What was expected
     },
@@ -67,7 +66,7 @@ pub enum ParseErrorKind {
     },
     ChoiceFailure { // All choices failed for a Choice instruction
         at: InputOffset,
-        // last_error: Option<Box<ParseError>>, // Keep track of the furthest error in choices
+        // last_error: Option<Box<ParseError>>, // Keep track of the furthest errors in choices
     },
     NegativeLookaheadFailed { // Negative lookahead matched (undesired)
         at: InputOffset,

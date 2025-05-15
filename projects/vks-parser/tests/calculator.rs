@@ -1,6 +1,5 @@
-
-use super::super::*; // lib content
-use grammar::{Associativity, PrattOperator, PrattOperatorType, Rule};
+use vks_parser::{CompileError, GrammarBuilder, GrammarInfo, ParserState, Rule};
+use vks_parser::grammar::{Associativity, PrattOperator, OperatorType};
 
 fn build_calculator_grammar() -> Result<GrammarInfo, Vec<CompileError>> {
     let mut gb = GrammarBuilder::new();
@@ -30,7 +29,7 @@ fn build_calculator_grammar() -> Result<GrammarInfo, Vec<CompileError>> {
     // Define Pratt operators for "Expression"
     let operators = vec![
         PrattOperator {
-            op_type: PrattOperatorType::Infix,
+            op_type: OperatorType::Infix,
             rule: Rule::Literal { text: "+".to_string() },
             precedence: 1,
             associativity: Some(Associativity::Left),
@@ -38,7 +37,7 @@ fn build_calculator_grammar() -> Result<GrammarInfo, Vec<CompileError>> {
             tag_name: Some("op_add".to_string()),
         },
         PrattOperator {
-            op_type: PrattOperatorType::Infix,
+            op_type: OperatorType::Infix,
             rule: Rule::Literal { text: "-".to_string() },
             precedence: 1,
             associativity: Some(Associativity::Left),
@@ -46,7 +45,7 @@ fn build_calculator_grammar() -> Result<GrammarInfo, Vec<CompileError>> {
             tag_name: Some("op_sub".to_string()),
         },
         PrattOperator {
-            op_type: PrattOperatorType::Infix,
+            op_type: OperatorType::Infix,
             rule: Rule::Literal { text: "*".to_string() },
             precedence: 2,
             associativity: Some(Associativity::Left),
@@ -54,7 +53,7 @@ fn build_calculator_grammar() -> Result<GrammarInfo, Vec<CompileError>> {
             tag_name: Some("op_mul".to_string()),
         },
         PrattOperator {
-            op_type: PrattOperatorType::Infix,
+            op_type: OperatorType::Infix,
             rule: Rule::Literal { text: "/".to_string() },
             precedence: 2,
             associativity: Some(Associativity::Left),
@@ -63,7 +62,7 @@ fn build_calculator_grammar() -> Result<GrammarInfo, Vec<CompileError>> {
         },
         PrattOperator {
             // Exponentiation (right associative)
-            op_type: PrattOperatorType::Infix,
+            op_type: OperatorType::Infix,
             rule: Rule::Literal { text: "^".to_string() },
             precedence: 3,
             associativity: Some(Associativity::Right),

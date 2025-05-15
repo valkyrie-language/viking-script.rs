@@ -1,6 +1,5 @@
-use fancy_regex::Regex as FancyRegex;
 use serde::{Deserialize, Serialize};
-
+use fancy_regex::Regex;
 pub type RuleId = u32;
 pub type TagId = u32; // 0 can mean "no tag"
 
@@ -14,8 +13,8 @@ pub enum Instruction {
     /// Literal string to match
     Literal { text: String },
     /// Reference to a regex rule by ID
-    #[serde(with = "serde_fancy_ergex")]
-    Regex { regex: fancy_regex::Regex },
+    #[serde(with = "serde_fancy_regex")]
+    Regex { regex: Regex },
     /// Read global variable from config
     Variable { name: String },
     /// Sequence of parts, all must match in order
@@ -35,8 +34,8 @@ pub enum Instruction {
     },
     /// Assigns a tag to the resulting node if this part matches
     Tagged { id: TagId, rule: Box<Instruction> },
-    /// If `rule` fails, record an error associated with `id` and potentially recover.
-    Trap { id: RuleId, rule: Box<Instruction> }, // `id` could be an error code or message key
+    /// If `rule` fails, record an errors associated with `id` and potentially recover.
+    Trap { id: RuleId, rule: Box<Instruction> }, // `id` could be an errors code or message key
     /// A special rule that matches whitespace (user overrideable `WHITE_SPACE`)
     Whitespace,
     /// A special rule that matches newline (user overrideable `NEW_LINE`)

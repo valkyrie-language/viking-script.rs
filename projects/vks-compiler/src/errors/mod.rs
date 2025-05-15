@@ -10,7 +10,7 @@ mod display;
 /// The result type of this crate.
 pub type Result<T> = std::result::Result<T, VksError>;
 
-/// A boxed error kind, wrapping an [VksErrorKind].
+/// A boxed errors kind, wrapping an [VksErrorKind].
 pub struct VksError {
     kind: Box<VksErrorKind>,
 }
@@ -22,7 +22,7 @@ pub enum VksErrorKind {
         path: PathBuf,
         error: std::io::Error,
     },
-    /// An unknown error.
+    /// An unknown errors.
     UnknownError,
 }
 

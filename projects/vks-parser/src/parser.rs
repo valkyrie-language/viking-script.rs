@@ -1,29 +1,32 @@
-use crate::error::{ParseError, ParseErrorKind, ParseResult, IndentErrorKind};
-use crate::grammar::{GrammarInfo, PrattOperator, PrattOperatorType, Associativity, PrattRuleConfig, GrammarConfig};
-use crate::input::{InputOffset, InputStream};
-use crate::instruction::{Instruction, RuleId, TagId};
-use crate::tree::{GreenNode, NodePool};
-use std::collections::{HashMap, VecDeque};
-use std::rc::Rc; // For sharing grammar info
+use crate::{
+    errors::{IndentErrorKind, ParseError, ParseErrorKind, ParseResult},
+    grammar::{Associativity, GrammarInfo, PrattOperator, OperatorType, PrattRuleConfig},
+    inputs::{InputOffset, InputStream},
+    instruction::{Instruction, RuleId, TagId},
+    tree::{GreenNode, NodePool},
+};
+use fancy_regex::Regex;
+use std::{
+    collections::{HashMap},
+    rc::Rc,
+};
+// For sharing grammar info
 
 // Result of parsing a single step/instruction
 // (new_offset, Option<GreenNode index>, Option<TagId if one was applied to this node>)
 type StepParseResult = ParseResult<(InputOffset, Option<GreenNode>, Option<TagId>)>;
 
-pub type CustomParser =
-Box<dyn Fn(&mut ParserState, InputOffset) -> ParseResult<(InputOffset, GreenNode)>>;
-
+pub type CustomParser = Box<dyn Fn(&mut ParserState, InputOffset) -> ParseResult<(InputOffset, GreenNode)>>;
 
 // Memoization table key: (RuleId, InputOffset)
 // Memoization table value: Result<(OutputOffset, Option<GreenNode>, Option<TagId>), ParseError_at_that_point>
-// The error needs to be cloneable if stored.
+// The errors needs to be cloneable if stored.
 type MemoKey = (RuleId, InputOffset);
 type MemoEntry = Result<(InputOffset, Option<GreenNode>, Option<TagId>), Rc<ParseError>>;
 
-
-pub struct ParserState<'g, 'i, I: InputStream + ?Sized> {
+pub struct ParserState<'i, 'g> {
     pub grammar_info: &'g GrammarInfo,
-    pub input: &'i I,
+    pub input: &'i dyn InputStream,
     pub node_pool: NodePool, // Each parser run gets its own pool for now. Could be shared/reset.
     pub memo_table: HashMap<MemoKey, MemoEntry>,
     pub recovered_errors: Vec<ParseError>, // Errors collected via Trap instructions
@@ -46,9 +49,9 @@ pub struct ParserState<'g, 'i, I: InputStream + ?Sized> {
     pub language_id: u32,
 }
 
-impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
-    pub fn new(grammar_info: &'g GrammarInfo, input: &'i I, language_id: u32) -> Self {
-        let initial_indent = 0; // Or derive from input's first line if relevant
+impl<'i, 'g> ParserState<'i, 'g> {
+    pub fn new(grammar_info: &'g GrammarInfo, input: &'i dyn InputStream, language_id: u32) -> Self {
+        let initial_indent = 0; // Or derive from inputs's first line if relevant
         Self {
             grammar_info,
             input,
@@ -69,7 +72,7 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             Err(e) => {
                 let mut all_errors = self.recovered_errors.clone();
                 all_errors.push(e);
-                Err(all_errors.remove(0)) // Return the primary error
+                Err(all_errors.remove(0)) // Return the primary errors
             }
         }
     }
@@ -81,7 +84,7 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
         // Let's assume memoization is primarily for `Instruction::Rule`.
 
         // Reset pin_committed for non-choice or start of choice
-        if !matches!(instr, Instruction::Choice {..} | Instruction::Pinned {..}) {
+        if !matches!(instr, Instruction::Choice { .. } | Instruction::Pinned { .. }) {
             self.pin_committed = false;
         }
 
@@ -135,7 +138,7 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                 let cloned_instr_body = instr_body.clone(); // Avoid if possible, this is for demo
                 self.eval_instruction(&cloned_instr_body, at) // Recursive call
             }
-            None => Err(ParseError::new(ParseErrorKind::RuleMismatch { rule_id, at })), // Should not happen if grammar compiled correctly
+            None => Err(ParseError::new(ParseErrorKind::RuleMismatch { rule_id, at })), /* Should not happen if grammar compiled correctly */
         };
         self.memo_table.insert(memo_key, result.clone().map_err(Rc::new));
         result
@@ -148,16 +151,17 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             // For now, let's say successful literal match returns its length, but no node.
             // The parent (Sequence, Choice, Tagged) will create the node.
             Ok((next_offset, None, None))
-        } else {
+        }
+        else {
             let found_text = self.input.view(at..std::cmp::min(at + text.len() as u64, self.input.len_bytes()));
             Err(ParseError::literal_mismatch(text.to_string(), found_text.into_owned(), at))
         }
     }
 
-    fn eval_regex(&mut self, regex: &FancyRegex, at: InputOffset) -> StepParseResult {
-        // `fancy_regex` works on strings. We need to get a view of the input.
+    fn eval_regex(&mut self, regex: &Regex, at: InputOffset) -> StepParseResult {
+        // `fancy_regex` works on strings. We need to get a view of the inputs.
         // This is inefficient for large inputs if we create large string slices often.
-        // For now, take a reasonably sized slice or the rest of the input.
+        // For now, take a reasonably sized slice or the rest of the inputs.
         // A better integration would allow regex to work on the InputStream directly if possible,
         // or use a stream-friendly regex engine.
         let remaining_input_view = self.input.view(at..self.input.len_bytes());
@@ -183,7 +187,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                     if let Some(child_node) = child_node_opt {
                         children_nodes.push(child_node);
                     }
-                    if idx == 0 { // Simplistic: take tag from first element if any
+                    if idx == 0 {
+                        // Simplistic: take tag from first element if any
                         overall_tag = child_tag_id;
                     }
                 }
@@ -226,14 +231,16 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                     return Ok(res);
                 }
                 Err(e) => {
-                    // Track the error that occurred furthest into the input, or the first one.
-                    // A more sophisticated error reporting might prefer errors from longer matches.
-                    if furthest_error.is_none() { // || e.at > furthest_error.as_ref().unwrap().at (need at on ParseError)
+                    // Track the errors that occurred furthest into the inputs, or the first one.
+                    // A more sophisticated errors reporting might prefer errors from longer matches.
+                    if furthest_error.is_none() {
+                        // || e.at > furthest_error.as_ref().unwrap().at (need at on ParseError)
                         furthest_error = Some(e);
                     }
-                    if self.pin_committed { // If a Pinned alternative failed, stop trying others
+                    if self.pin_committed {
+                        // If a Pinned alternative failed, stop trying others
                         self.is_pinned_choice_active = old_is_pinned_active;
-                        // The error from the pinned rule is the one to return
+                        // The errors from the pinned rule is the one to return
                         return Err(furthest_error.unwrap_or_else(|| ParseError::choice_failure(at)));
                     }
                 }
@@ -249,13 +256,15 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
         let start_at = current_at;
 
         loop {
-            if count >= max && max != u32::MAX { // max=u32::MAX (originally 0 from Rule::Repeats) means unbounded
+            if count >= max && max != u32::MAX {
+                // max=u32::MAX (originally 0 from Rule::Repeats) means unbounded
                 break;
             }
             // Try to parse one instance of the rule
             match self.eval_instruction(rule, current_at) {
                 Ok((next_offset, child_node_opt, _child_tag_id)) => {
-                    if next_offset == current_at && count > 0 { // Rule matched but consumed no input (potential infinite loop)
+                    if next_offset == current_at && count > 0 {
+                        // Rule matched but consumed no inputs (potential infinite loop)
                         // This is a common issue in PEGs. If it's e.g. `a*` and `a` matches empty.
                         // For now, we break. Some parsers disallow empty matches in `*` or `+`.
                         // If min is not met, this will fail. Otherwise, it's fine.
@@ -279,24 +288,33 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             // If children_nodes exist, they are passed up.
             // Let's assume Repeats, like Sequence, doesn't create a node directly.
             Ok((current_at, None, None))
-        } else {
+        }
+        else {
             Err(ParseError::new(ParseErrorKind::MinRepetitionNotMet { at: start_at }))
         }
     }
 
     fn eval_lookahead(&mut self, rule: &Instruction, negative: bool, at: InputOffset) -> StepParseResult {
         match self.eval_instruction(rule, at) {
-            Ok(_) => { // Matched
-                if negative { // Negative lookahead, but it matched: Error
+            Ok(_) => {
+                // Matched
+                if negative {
+                    // Negative lookahead, but it matched: Error
                     Err(ParseError::new(ParseErrorKind::NegativeLookaheadFailed { at }))
-                } else { // Positive lookahead, it matched: Success, consume no input
+                }
+                else {
+                    // Positive lookahead, it matched: Success, consume no inputs
                     Ok((at, None, None))
                 }
             }
-            Err(_) => { // Did not match
-                if negative { // Negative lookahead, it didn't match: Success, consume no input
+            Err(_) => {
+                // Did not match
+                if negative {
+                    // Negative lookahead, it didn't match: Success, consume no inputs
                     Ok((at, None, None))
-                } else { // Positive lookahead, it didn't match: Error
+                }
+                else {
+                    // Positive lookahead, it didn't match: Error
                     Err(ParseError::new(ParseErrorKind::PositiveLookaheadFailed { at }))
                 }
             }
@@ -329,7 +347,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                 // Let's create a new node if the span is non-empty, regardless of child.
                 // This simplifies things: Tagged *always* tries to make a node.
                 let length = (next_offset - at) as u32;
-                if length > 0 || child_node_opt.is_some() { // Create node if it has length or children
+                if length > 0 || child_node_opt.is_some() {
+                    // Create node if it has length or children
                     // The `kind` of the node created by `Tagged` is an open question.
                     // If `rule` is `Rule { id: X }`, then kind is `X`.
                     // If `rule` is `Literal`, kind could be a special "LiteralToken" kind.
@@ -338,7 +357,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                     // So, `Tagged` passes its tag_id, and the node creator (e.g. `eval_rule`) uses it.
                     // This `StepParseResult` returns the tag_id to its caller.
                     Ok((next_offset, child_node_opt, Some(tag_id)))
-                } else {
+                }
+                else {
                     // Matched empty, no node, but tag might still be relevant if caller cares.
                     Ok((next_offset, None, Some(tag_id)))
                 }
@@ -350,7 +370,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
     fn eval_eof(&self, at: InputOffset) -> StepParseResult {
         if self.input.match_eof(at) {
             Ok((at, None, None))
-        } else {
+        }
+        else {
             Err(ParseError::new(ParseErrorKind::EndOfFileExpected { at }))
         }
     }
@@ -370,7 +391,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             // For now, this is a simplification. In a real system, instructions would be Rc or accessed by ID.
             let cloned_instr = instr.clone();
             self.eval_instruction(&cloned_instr, at)
-        } else {
+        }
+        else {
             // Default: match one or more spaces/tabs
             let initial_at = at;
             let mut current_at = at;
@@ -384,8 +406,9 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             }
             if current_at > initial_at {
                 Ok((current_at, None, None))
-            } else {
-                Err(ParseError::generic("Expected whitespace".to_string(), at)) // Or a specific error
+            }
+            else {
+                Err(ParseError::generic("Expected whitespace".to_string(), at)) // Or a specific errors
             }
         }
     }
@@ -394,7 +417,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
         if let Some(instr) = self.get_special_rule_instr(self.grammar_info.config.default_newline_rule_name.as_ref()) {
             let cloned_instr = instr.clone();
             self.eval_instruction(&cloned_instr, at)
-        } else {
+        }
+        else {
             // Default: match \n or \r\n
             if let Some(offset) = self.input.match_str("\r\n", at) {
                 return Ok((offset, None, None));
@@ -443,23 +467,22 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
         if new_indent > self.current_indentation {
             self.indentation_stack.push(new_indent);
             self.current_indentation = new_indent;
-            Ok((at, None, None)) // Indent consumes no input itself
-        } else {
-            Err(ParseError::new(ParseErrorKind::IndentationError {
-                at,
-                kind: IndentErrorKind::NotGreater,
-            }))
+            Ok((at, None, None)) // Indent consumes no inputs itself
+        }
+        else {
+            Err(ParseError::new(ParseErrorKind::IndentationError { at, kind: IndentErrorKind::NotGreater }))
         }
     }
 
     fn eval_dedent(&mut self, at: InputOffset) -> StepParseResult {
         let new_indent = self.input.indentation(at, &self.grammar_info.config);
         if new_indent < self.current_indentation {
-            // Pop from stack until new_indent matches a previous level or stack is empty (error).
+            // Pop from stack until new_indent matches a previous level or stack is empty (errors).
             // Simple model: dedent if new_indent < current. The new current becomes new_indent.
             // A stricter model checks if new_indent is exactly a previous stack level.
             loop {
-                if self.indentation_stack.len() <= 1 { // Cannot dedent past the base level (0)
+                if self.indentation_stack.len() <= 1 {
+                    // Cannot dedent past the base level (0)
                     return Err(ParseError::new(ParseErrorKind::IndentationError {
                         at,
                         kind: IndentErrorKind::NonAligned, // Or NotLess if stack empty
@@ -477,29 +500,30 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                         self.indentation_stack.pop();
                         self.current_indentation = new_indent;
                         return Ok((at, None, None)); // Matched one dedent level
-                    } else if new_indent < prev_indent { // Further dedent needed
+                    }
+                    else if new_indent < prev_indent {
+                        // Further dedent needed
                         self.indentation_stack.pop();
                         self.current_indentation = prev_indent; // Temporarily set to popped level to continue loop
-                        // Continue loop for multi-dedent
-                    } else { // new_indent > prev_indent but < current_indent: misalignment
-                        return Err(ParseError::new(ParseErrorKind::IndentationError{
+                    // Continue loop for multi-dedent
+                    }
+                    else {
+                        // new_indent > prev_indent but < current_indent: misalignment
+                        return Err(ParseError::new(ParseErrorKind::IndentationError {
                             at,
                             kind: IndentErrorKind::NonAligned,
                         }));
                     }
-                } else { // new_indent >= self.current_indentation (should be strictly less from outer if)
-                    return Err(ParseError::new(ParseErrorKind::IndentationError {
-                        at,
-                        kind: IndentErrorKind::NotLess,
-                    }));
+                }
+                else {
+                    // new_indent >= self.current_indentation (should be strictly less from outer if)
+                    return Err(ParseError::new(ParseErrorKind::IndentationError { at, kind: IndentErrorKind::NotLess }));
                 }
             }
-
-        } else { // new_indent >= self.current_indentation
-            Err(ParseError::new(ParseErrorKind::IndentationError {
-                at,
-                kind: IndentErrorKind::NotLess,
-            }))
+        }
+        else {
+            // new_indent >= self.current_indentation
+            Err(ParseError::new(ParseErrorKind::IndentationError { at, kind: IndentErrorKind::NotLess }))
         }
     }
 
@@ -507,8 +531,9 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
         if let Some(value) = self.grammar_info.config.variables.get(name) {
             // Treat the variable's value as a literal to match
             self.eval_literal(value, at)
-        } else {
-            Err(ParseError::new(ParseErrorKind::VariableNotFound{ name: name.to_string(), at }))
+        }
+        else {
+            Err(ParseError::new(ParseErrorKind::VariableNotFound { name: name.to_string(), at }))
         }
     }
 
@@ -521,15 +546,15 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                     at, // Error occurred at 'at' because the inner rule failed there
                     underlying_error: Some(Box::new(e)),
                 }));
-                // Trap itself "succeeds" by catching the error, but consumes no input
+                // Trap itself "succeeds" by catching the errors, but consumes no inputs
                 // and produces no node beyond what the recovery strategy might do.
                 // For now, it means the enclosing Choice or Optional can continue.
                 // This behavior (returning Ok or Err) depends on recovery.
-                // For "single parse, multiple errors", Trap means the error is recorded,
+                // For "single parse, multiple errors", Trap means the errors is recorded,
                 // and parsing *tries* to continue. So, Trap itself doesn't fail the parent Choice.
-                // It needs to return an "error was handled, continue" signal.
+                // It needs to return an "errors was handled, continue" signal.
                 // This is tricky. Let's make it an Err that is special.
-                // Or, Trap always "succeeds" but produces no node, error is in recovered_errors.
+                // Or, Trap always "succeeds" but produces no node, errors is in recovered_errors.
                 Ok((at, None, None)) // Error handled, rule "matched" by consuming nothing.
             }
         }
@@ -540,19 +565,22 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
         // For now, assume custom_id is a key in grammar_info.custom_parsers (if it stored by ID)
         // Or, we need a custom_id_to_name map, then lookup in custom_parsers by name.
         // Let's find the name for this custom_id first.
-        let rule_name = self.grammar_info.custom_name_to_id.iter()
-            .find_map(|(name, &id)| if id == custom_id { Some(name) } else { None });
+        let rule_name =
+            self.grammar_info.custom_name_to_id.iter().find_map(|(name, &id)| if id == custom_id { Some(name) } else { None });
 
         if let Some(name) = rule_name {
             if let Some(parser_fn) = self.grammar_info.custom_parsers.get(name) {
-                match parser_fn(self, at) { // `self` is `&mut ParserState`
+                match parser_fn(self, at) {
+                    // `self` is `&mut ParserState`
                     Ok((next_offset, green_node)) => Ok((next_offset, Some(green_node), None)),
-                    Err(e) => Err(e), // Custom parser returned an error
+                    Err(e) => Err(e), // Custom parser returned an errors
                 }
-            } else {
+            }
+            else {
                 Err(ParseError::new(ParseErrorKind::ExternalRuleMismatch { custom_id, at })) // Should not happen
             }
-        } else {
+        }
+        else {
             Err(ParseError::new(ParseErrorKind::ExternalRuleMismatch { custom_id, at })) // ID not found
         }
     }
@@ -574,7 +602,7 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                 Err(ParseError::new(ParseErrorKind::PinnedRuleFailed {
                     // We need a way to identify which pinned rule failed, if `rule` is complex.
                     // If `rule` is `Rule { id }`, we can use that id.
-                    rule_id: if let Instruction::Rule {id} = rule.as_ref() { Some(*id) } else {None},
+                    rule_id: if let Instruction::Rule { id } = rule { Some(*id) } else { None },
                     at,
                 }))
             }
@@ -591,14 +619,22 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
 
     // Actual Pratt parsing logic (simplified: Precedence Climbing)
     // `min_precedence` is used for recursion in precedence climbing.
-    fn parse_pratt_expr_recursive(&mut self, pratt_config: &PrattRuleConfig, mut current_at: InputOffset, min_precedence: u8) -> ParseResult<(InputOffset, GreenNode)> {
+    fn parse_pratt_expr_recursive(
+        &mut self,
+        pratt_config: &PrattRuleConfig,
+        mut current_at: InputOffset,
+        min_precedence: u8,
+    ) -> ParseResult<(InputOffset, GreenNode)> {
         // 1. Parse primary expression (lhs)
-        let primary_rule_id = pratt_config.primary_rule_id.ok_or_else(|| ParseError::generic("Pratt primary rule ID missing".to_string(), current_at))?;
+        let primary_rule_id = pratt_config
+            .primary_rule_id
+            .ok_or_else(|| ParseError::generic("Pratt primary rule ID missing".to_string(), current_at))?;
 
         // Temporarily treat the primary_rule_id as a standard rule to parse
         // This might involve calling eval_rule, which could recurse into Pratt if primary itself is Pratt (unlikely for typical primary)
         let (mut lhs_next_at, lhs_node_opt, _lhs_tag) = self.eval_rule(primary_rule_id, current_at)?;
-        let mut lhs_node = lhs_node_opt.ok_or_else(|| ParseError::generic("Pratt primary expression did not produce a node".to_string(), current_at))?;
+        let mut lhs_node = lhs_node_opt
+            .ok_or_else(|| ParseError::generic("Pratt primary expression did not produce a node".to_string(), current_at))?;
         current_at = lhs_next_at;
 
         // 2. Loop for infix operators
@@ -607,8 +643,12 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             let mut best_op: Option<(&PrattOperator, InputOffset, Option<GreenNode>)> = None;
 
             for op_config in &pratt_config.operators {
-                if op_config.op_type != PrattOperatorType::Infix { continue; }
-                if op_config.precedence < min_precedence { continue; }
+                if op_config.op_type != OperatorType::Infix {
+                    continue;
+                }
+                if op_config.precedence < min_precedence {
+                    continue;
+                }
 
                 // Try to parse the operator at current_at
                 // The operator's rule (op_config.rule) needs to be evaluated.
@@ -616,7 +656,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                 // If op_config.op_rule_id is set, use it.
                 let op_instr = if let Some(op_rule_id) = op_config.op_rule_id {
                     self.grammar_info.instructions_map.get(&op_rule_id)
-                } else {
+                }
+                else {
                     // If op_config.rule is e.g. Literal{"+"}, we need to eval that directly.
                     // This requires a temporary compilation or direct handling here.
                     // For now, assume op_rule_id is resolved.
@@ -635,7 +676,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                         // Backtrack indentation changes if this op is not chosen or fails later
                         self.indentation_stack = pre_op_indent_stack.clone();
                         self.current_indentation = pre_op_current_indent;
-                    } else {
+                    }
+                    else {
                         self.indentation_stack = pre_op_indent_stack;
                         self.current_indentation = pre_op_current_indent;
                     }
@@ -645,7 +687,8 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
             if let Some((op_config, op_next_at, op_node_opt)) = best_op {
                 let next_min_precedence = if op_config.associativity == Some(Associativity::Left) {
                     op_config.precedence + 1
-                } else {
+                }
+                else {
                     op_config.precedence // For right-associative
                 };
 
@@ -658,12 +701,16 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
 
                 // Combine LHS, Op, RHS into a new node
                 let mut children = vec![lhs_node];
-                if let Some(op_n) = op_node_opt { children.push(op_n); } // Operator node if it exists
+                if let Some(op_n) = op_node_opt {
+                    children.push(op_n);
+                } // Operator node if it exists
                 children.push(rhs_node);
 
                 // The 'kind' for this new node is the pratt_rule_id itself.
                 // Tag could be from operator config.
-                let tag_id = op_config.tag_name.as_ref()
+                let tag_id = op_config
+                    .tag_name
+                    .as_ref()
                     .and_then(|name| self.grammar_info.tag_name_to_id.get(name).cloned())
                     .unwrap_or(0);
 
@@ -671,10 +718,15 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
                     self.language_id,
                     pratt_config.self_rule_id.unwrap(), // Kind is the ID of the Pratt rule itself
                     tag_id,
-                    (current_at - (lhs_next_at - lhs_node.node_id as u64/*approx start of lhs*/)) as u32, // length is tricky here, need start of lhs
+                    (current_at
+                        - (
+                            lhs_next_at - lhs_node.node_id as u64
+                            // approx start of lhs
+                        )) as u32, // length is tricky here, need start of lhs
                     children.into_iter().collect(),
                 );
-            } else {
+            }
+            else {
                 break; // No more operators, or lower precedence
             }
         }
@@ -682,7 +734,10 @@ impl<'g, 'i, I: InputStream + ?Sized> ParserState<'g, 'i, I> {
     }
 
     fn parse_pratt_expr_entry(&mut self, pratt_rule_id: RuleId, at: InputOffset) -> StepParseResult {
-        let pratt_config = self.grammar_info.pratt_configs.get(&pratt_rule_id)
+        let pratt_config = self
+            .grammar_info
+            .pratt_configs
+            .get(&pratt_rule_id)
             .ok_or_else(|| ParseError::generic("Pratt config not found for rule ID".to_string(), at))?;
 
         // Need to clone pratt_config because parse_pratt_expr_recursive takes &PrattRuleConfig

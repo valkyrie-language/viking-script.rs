@@ -12,7 +12,7 @@ pub trait InputStream {
     /// Match a string
     fn match_str(&self, s: &str, at: InputOffset) -> Option<InputOffset>;
 
-    /// Check if the end of the input stream is reached
+    /// Check if the end of the inputs stream is reached
     fn match_eof(&self, at: InputOffset) -> bool;
 
     /// Get the content of the specified range as a string
@@ -25,7 +25,7 @@ pub trait InputStream {
     /// Get character at a given offset
     fn char_at(&self, at: InputOffset) -> Option<char>;
 
-    /// Length of the input in bytes
+    /// Length of the inputs in bytes
     fn len_bytes(&self) -> u64;
 }
 
