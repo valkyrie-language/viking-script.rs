@@ -4,7 +4,6 @@
 
 pub mod ast;
 pub mod grammar;
-pub mod input;
 pub mod instruction;
 pub mod language;
 pub mod parser;

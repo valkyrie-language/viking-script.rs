@@ -1,20 +1,15 @@
-//! 增量式PEG解析库
-//!
-//! 提供高性能、可扩展的PEG解析器实现，支持记忆化、缩进文法、自定义解析函数等特性。
-//! 
-pub mod errors;
-pub mod peg;
+// ============== src/lib.rs ==============
+pub mod error;
+pub mod grammar;
+pub mod input;
+pub mod instruction;
+pub mod parser;
+pub mod tree;
 
-/// 重导出常用类型和函数
-pub use crate::peg::grammar::{GrammarBuilder, GrammarConfig, GrammarInfo};
-pub use crate::peg::input::{InputStream, InputOffset, StringInputStream, EscapedInputStream};
-pub use crate::peg::instruction::{Instruction, Rule, RuleId, TagId};
-pub use crate::peg::parser::{Parser, ParserState, BasicParser};
-pub use crate::peg::ast::{Node, NodePool, GreenNode, GreenData};
-pub use crate::errors::{ParseError, Result, ErrorHandler, DefaultErrorHandler, RecoveryStrategy, TrapRule};
-
-/// 自定义解析函数类型
-pub type CustomParser = Box<dyn Fn(&mut ParserState, InputOffset) -> Result<Option<InputOffset>>>;
-
-/// 解析结果类型
-pub type ParseResult<T> = Result<Option<T>>;
+// Re-export key types
+pub use error::{CompileError, CompileErrorKind, ParseError, ParseErrorKind, ParseResult};
+pub use grammar::{GrammarBuilder, GrammarConfig, GrammarInfo, Rule};
+pub use input::{InputOffset, InputStream};
+pub use instruction::{Instruction, RuleId, TagId};
+pub use parser::{CustomParser, ParserState}; // ParserState will be defined in parser.rs
+pub use tree::{GreenData, GreenNode, NodePool};

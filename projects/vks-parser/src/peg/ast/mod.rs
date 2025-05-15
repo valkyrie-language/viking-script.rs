@@ -6,7 +6,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use serde::{Serialize, Deserialize};
 
-use crate::peg::input::InputOffset;
+use crate::inputs::InputOffset;
 
 // 导出缓存模块
 pub mod cache;

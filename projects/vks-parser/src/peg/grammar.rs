@@ -10,7 +10,7 @@ use fancy_regex::Regex;
 use crate::peg::instruction::{Rule, Instruction, RuleId, TagId};
 use crate::peg::parser::ParserState;
 use crate::peg::ast::Node;
-use crate::peg::input::InputOffset;
+use crate::inputs::InputOffset;
 use crate::errors::Result;
 use crate::CustomParser;
 

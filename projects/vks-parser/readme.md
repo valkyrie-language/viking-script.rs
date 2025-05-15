@@ -5,6 +5,8 @@
 使用 GrammarBuilder 构建语法, 上层为 rule, 通过编译转为下层指令
 
 ```rust
+use std::collections::BTreeMap;
+
 pub struct GrammarBuilder {
     //...
 }
@@ -14,9 +16,18 @@ pub struct GrammarInfo {
 }
 
 pub struct GrammarConfig {
-    variables: HashMap<String, String>,
-    tab_as_space: u32
+    variables: BTreeMapMap<String, String>,
+    tab_as_space: u32,
     // ...
+}
+
+impl Default for GrammarConfig {
+    fn default() -> Self {
+        Self {
+            variables: BTreeMapMap::new(),
+            tab_as_space: 4,
+        }
+    }
 }
 
 /// Represents a part of a rule during building
@@ -55,11 +66,11 @@ pub enum Instruction {
     Tagged { id: TagId, rule: Box<Instruction> },
     /// Compiled regex
     Trap { id: RuleId, rule: Box<Instruction> },
-    /// A special rule that matches whitespace (user overrideable)
+    /// A special rule that matches whitespace (user overrideable `WHITE_SPACE`)
     Whitespace,
-    /// A special rule that matches newline (user overrideable)
+    /// A special rule that matches newline (user overrideable `NEW_LINE`)
     Newline,
-    /// A special rule that matches whitespace + newline + comments (user overrideable)
+    /// A special rule that matches whitespace + newline + comments (user overrideable `IGNORED`)
     Ignored,
     /// a special rule for visual indentation
     Indent,
@@ -70,9 +81,17 @@ pub enum Instruction {
 }
 ```
 
+serde_fancy_regex 是一个库, 你无需实现
+
 ## 特性
 
-支持定义规则 (grammar.add_rule), 标记记忆化节点, 以及缩进文法
+支持缩进文法
+
+支持增量解析
+
+支持手动记忆化
+
+支持定义规则 (grammar.add_rule)
 
 支持注册自定义解析函数 (grammar.add_custom_rule)
 
@@ -145,21 +164,23 @@ pub trait InputStream {
 
     /// 获取指定范围内容, 并转为字符串
     fn view(&self, range: Range<InputOffset>) -> Cow<str>;
+    
+    fn indentation(&self, at: InputOffset, config: GrammarConfig) -> u32;
 }
 
 
 
 impl<'a> InputStream for &'a str {
-    fn match_char(&self, c: char, at: InputOffset) -> Option<Range<InputOffset>> {
+    fn match_char(&self, c: char, at: InputOffset) -> Option<InputOffset> {
         let offset = at as usize;
         let slice = self.get(offset..)?;
-        if slice.starts_with(c) { Some(c.len_utf8() as InputOffset) } else { None }
+        if slice.starts_with(c) { Some(at + c.len_utf8() as InputOffset) } else { None }
     }
 
-    fn match_str(&self, s: &str, at: InputOffset) -> Option<Range<InputOffset>> {
+    fn match_str(&self, s: &str, at: InputOffset) -> Option<InputOffset> {
         let offset = at as usize;
         let slice = self.get(offset..)?;
-        if slice.starts_with(s) { Some(s.len() as InputOffset) } else { None }
+        if slice.starts_with(s) { Some(at + s.len() as InputOffset) } else { None }
     }
 
     fn match_eof(&self, at: InputOffset) -> bool {
@@ -182,6 +203,8 @@ input stream 要能正确处理这种情况.
 ## 错误处理
 
 错误分为 parse error(runtime error) 和 compiler error
+
+不要用 this error 库里的宏生成
 
 ## 测试
 

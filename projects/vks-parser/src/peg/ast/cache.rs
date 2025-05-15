@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
-use crate::peg::input::InputOffset;
+use crate::inputs::InputOffset;
 use super::{Node, GreenNode, NodePool};
 
 /// 节点缓存键
