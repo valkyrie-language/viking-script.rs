@@ -7,18 +7,23 @@
  * 效应类型定义
  */
 class Effect {
-    constructor(type, data = {}) {
+    public type: string;
+    public data: Record<string, any>;
+    public timestamp: number;
+    public id: string;
+
+    constructor(type: string, data: Record<string, any> = {}) {
         this.type = type;
         this.data = data;
         this.timestamp = Date.now();
         this.id = Effect.generateId();
     }
 
-    static generateId() {
+    static generateId(): string {
         return Math.random().toString(36).substr(2, 9);
     }
 
-    toString() {
+    toString(): string {
         return `Effect(${this.type}, ${JSON.stringify(this.data)})`;
     }
 }
@@ -33,37 +38,37 @@ class DivideByZeroError extends Effect {
 }
 
 class Log extends Effect {
-    constructor(message, level = 'info') {
+    constructor(message: string, level: string = 'info') {
         super('Log', {message, level});
     }
 }
 
 class FileNotFound extends Effect {
-    constructor(filename) {
+    constructor(filename: string) {
         super('FileNotFound', {filename});
     }
 }
 
 class NetworkError extends Effect {
-    constructor(url, error) {
+    constructor(url: string, error: any) {
         super('NetworkError', {url, error});
     }
 }
 
 class StateRead extends Effect {
-    constructor(key) {
+    constructor(key: string) {
         super('StateRead', {key});
     }
 }
 
 class StateWrite extends Effect {
-    constructor(key, value) {
+    constructor(key: string, value: any) {
         super('StateWrite', {key, value});
     }
 }
 
 class AsyncOperation extends Effect {
-    constructor(operation, args = []) {
+    constructor(operation: Function, args: any[] = []) {
         super('AsyncOperation', {operation, args});
     }
 }
@@ -71,8 +76,17 @@ class AsyncOperation extends Effect {
 /**
  * 效应处理器
  */
+interface HandlerCase {
+    pattern: any;
+    action: (effect: Effect, resume: (value: any) => any, k: Function, h: EffectHandler | null) => any;
+}
+
 class EffectHandler {
-    constructor(cases = [], parent = null) {
+    public cases: HandlerCase[];
+    public parent: EffectHandler | null;
+    public id: string;
+
+    constructor(cases: HandlerCase[] = [], parent: EffectHandler | null = null) {
         this.cases = cases;
         this.parent = parent;
         this.id = Effect.generateId();
@@ -81,7 +95,7 @@ class EffectHandler {
     /**
      * 添加处理案例
      */
-    addCase(pattern, action) {
+    addCase(pattern: any, action: (effect: Effect, resume: (value: any) => any, k: Function, h: EffectHandler | null) => any): EffectHandler {
         this.cases.push({pattern, action});
         return this;
     }
@@ -89,7 +103,7 @@ class EffectHandler {
     /**
      * 查找匹配的处理案例
      */
-    findMatchingCase(effect) {
+    findMatchingCase(effect: Effect): HandlerCase | null {
         for (const handlerCase of this.cases) {
             if (this.matchPattern(effect, handlerCase.pattern)) {
                 return handlerCase;
@@ -101,7 +115,7 @@ class EffectHandler {
     /**
      * 模式匹配
      */
-    matchPattern(effect, pattern) {
+    matchPattern(effect: Effect, pattern: any): boolean {
         // 函数模式
         if (typeof pattern === 'function') {
             return pattern(effect);
@@ -138,7 +152,7 @@ class EffectHandler {
     /**
      * 创建子处理器
      */
-    extend(cases = []) {
+    extend(cases: HandlerCase[] = []): EffectHandler {
         return new EffectHandler(cases, this);
     }
 }

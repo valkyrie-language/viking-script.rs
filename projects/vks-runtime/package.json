@@ -2,8 +2,14 @@
     "name": "vks-runtime",
     "version": "0.1.0",
     "description": "Viking Script Language Runtime",
-    "main": "src/index.js",
-    "types": "dist/index.d.ts",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./dist/viking-runtime.es.js",
+            "require": "./dist/viking-runtime.umd.js"
+        }
+    },
     "scripts": {
         "build": "vite build",
         "dev": "vite build --watch",

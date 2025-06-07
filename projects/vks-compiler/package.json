@@ -1,39 +1,35 @@
 {
-    "name": "vks-compiler",
-  "version": "0.1.0",
-  "description": "Viking Script Language Compiler",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
-    "test": "vitest",
-    "clean": "rimraf dist"
-  },
-  "keywords": [
-    "compiler",
-    "language",
-    "typescript",
-    "javascript",
-    "viking",
-    "cps",
-    "algebraic-effects"
-  ],
-  "author": "Viking Script Team",
-  "license": "MIT",
-  "dependencies": {
-    "source-map": "^0.7.4"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "@types/source-map": "^0.5.7",
-    "vite": "^5.0.0",
-    "vitest": "^1.0.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
+    "name": "viking-compiler",
+    "version": "0.1.0",
+    "description": "Viking Script Compiler",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite build --watch",
+        "test": "vitest",
+        "clean": "rimraf dist"
+    },
+    "keywords": [
+        "compiler",
+        "language",
+        "typescript",
+        "javascript",
+        "viking",
+        "cps",
+        "algebraic-effects"
+    ],
+    "author": "Viking Script Team",
+    "license": "MIT",
+    "dependencies": {
+        "source-map": "^0.7.4"
+    },
+    "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/node": "^20.0.0",
+        "vite": "^5.0.0",
+        "vitest": "^1.0.0"
+    },
     "engines": {
         "node": ">=16.0.0"
     }

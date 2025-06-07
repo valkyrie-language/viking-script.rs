@@ -1,11 +1,11 @@
-import { defineConfig } from 'vite';
+import {defineConfig} from 'vite';
 
 export default defineConfig({
-  build: {
-    lib: {
-      entry: 'src/index.js',
-      name: 'VksRuntime',
-      fileName: (format) => `vks-runtime.${format}.js`,
+    build: {
+        lib: {
+            entry: 'src/index.ts',
+            name: 'VikingRuntime',
+            fileName: (format) => `viking-runtime.${format}.js`,
+        },
     },
-  },
 });
