@@ -1,2 +1,2 @@
-export type {Position, Location} from "./helper"
+export {Position, Location, ParseError} from "./helper"
 export * from "./nodes"
