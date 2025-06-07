@@ -25,6 +25,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': resolve(__dirname, './src'),
+            '@parser': resolve(__dirname, './src/parser'),
+            '@helper': resolve(__dirname, './src/helper'),
             '@tests': resolve(__dirname, './tests')
         }
     },

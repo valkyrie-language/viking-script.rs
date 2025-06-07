@@ -1,46 +1,50 @@
-// 字符串解析器
+import {choice, failure, map, optional, ParseState, sequence, success} from "@helper"
+import {parseIdentifier} from "../index";
 import {StringLiteral} from "viking-hir";
 
-export function parseStringLiteral(): Parser<string> {
-    return choice(parseQuotedString("'"), parseQuotedString('"'));
-}
+export const parseStringLiteral: Parser<StringLiteral> = map(
+    sequence(
+        optional(parseIdentifier),
+        choice(parseQuotedString("'"), parseQuotedString('"'))
+    ),
+    ([handler, text]) => {
+        return {
+            type: "StringLiteral",
+            handler: handler,
+            text: text,
+        }
+    })
 
-export function parseQuotedString(quote: string): ParseResult<StringLiteral> {
+export function parseQuotedString(quote: string): ParseResult<string> {
     return (state: ParseState) => {
-        const start = state.position;
         const count = countQuote(state.residual, quote);
         // not string
         if (count == 0) {
-            return failure('Expected single-quoted string')(state);
+            return failure(state, 'Expected single-quoted string');
         }
         // empty string
         else if (count == 2) {
             state.advance("''")
-            return success({
-                type: "StringLiteral",
-                value: "",
-                location: state.createLocation(start)
-            })
+            return success(state, "")
         }
         // start with 1 or 3 or more
         else {
-            const end = matchQuoteRest(state.residual, quote, count) + count;
+            const rest = state.residual.substring(count, state.residual.length);
+            const end = matchQuoteRest(rest, quote, count);
             const text = state.residual.substring(0, end);
             state.advance(text);
-            return success({
-                type: "StringLiteral",
-                value: text.substring(count, text.length - count),
-                location: state.createLocation(start)
-            })
+            return success(state, text.substring(count, text.length - count + 1))
         }
     };
 }
 
 function countQuote(text: string, quote: string): number {
     let count = 0;
-    for (char of text) {
+    for (const char of text) {
         if (char === quote) {
             count++;
+        } else {
+            break
         }
     }
     return count;

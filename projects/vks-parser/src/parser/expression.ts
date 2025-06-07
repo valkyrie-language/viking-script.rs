@@ -35,10 +35,11 @@ import {
     createBinaryExpression,
     createCallExpression
 } from 'viking-hir';
-import { parseLiteral, parseIdentifier } from './literal';
+import { parseLiteral } from './literal';
 import { parseTypeAnnotation } from './type';
 import { parsePattern } from './pattern';
 import { parseStatement, parseBlockStatement } from './statement';
+import {parseIdentifier} from "@parser/literal/parseIdentifier";
 
 // 标识符解析器
 export function parseNamepath(): Parser<Identifier> {

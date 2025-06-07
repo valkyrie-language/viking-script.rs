@@ -57,3 +57,4 @@ export {
     parseTypeDeclaration
 } from './statement';
 export {parseStringLiteral} from "./literal/parseStringLiteral";
+export {parseIdentifier} from "@parser/literal/parseIdentifier";
