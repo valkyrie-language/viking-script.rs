@@ -1,6 +1,5 @@
 import {
     Parser,
-    ParseState,
     ParseResult,
     map,
     choice,
@@ -55,6 +54,7 @@ import {
 import { parseExpression, parseNamepath } from './expression';
 import { parseTypeAnnotation, parseTypeParameter } from './type';
 import { parsePattern } from './pattern';
+import {ParseState} from "@helper/parseState";
 
 // 程序解析器
 export function parseProgram(): Parser<Program> {

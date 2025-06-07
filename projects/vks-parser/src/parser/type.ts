@@ -1,6 +1,5 @@
 import {
     Parser,
-    ParseState,
     ParseResult,
     map,
     choice,
@@ -30,6 +29,7 @@ import {
     TypeParameter,
     ObjectTypeProperty
 } from 'viking-hir';
+import {ParseState} from "@helper/parseState";
 
 // 基础类型解析器
 export function parsePrimitiveType(): Parser<PrimitiveType> {

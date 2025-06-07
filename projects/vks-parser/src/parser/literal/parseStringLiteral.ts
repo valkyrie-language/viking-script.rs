@@ -1,6 +1,7 @@
-import {choice, failure, map, optional, ParseState, sequence, success} from "@helper"
+import {choice, failure, map, optional, sequence, success} from "@helper"
 import {parseIdentifier} from "../index";
 import {StringLiteral} from "viking-hir";
+import {ParseState} from "@helper/parseState";
 
 export const parseStringLiteral: Parser<StringLiteral> = map(
     sequence(

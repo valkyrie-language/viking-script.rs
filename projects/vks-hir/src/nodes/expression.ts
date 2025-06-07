@@ -1,11 +1,11 @@
 import {ASTNode} from './index';
 import {Statement} from './statement';
-import {Literal} from './literal';
+import {LiteralNode} from './literal';
 import {Pattern} from './pattern';
 import {TypeAnnotation} from './type';
 
-export interface Identifier extends ASTNode {
-    type: 'Identifier';
+export interface NamePathNode extends ASTNode {
+    type: 'NamePathNode';
     name: string;
     namespace?: string[];
 }
@@ -71,7 +71,7 @@ export interface ObjectExpression extends ASTNode {
 
 export interface FunctionExpression extends ASTNode {
     type: 'FunctionExpression';
-    id?: Identifier;
+    id?: NamePathNode;
     params: Pattern[];
     body: Statement;
     async: boolean;
@@ -113,8 +113,8 @@ export interface MatchExpression extends ASTNode {
 }
 
 export type Expression =
-    | Identifier
-    | Literal
+    | NamePathNode
+    | LiteralNode
     | BinaryExpression
     | UnaryExpression
     | AssignmentExpression
@@ -130,7 +130,7 @@ export type Expression =
     | MatchExpression;
 
 // 工厂函数
-export function createNamepath(name: string, location: Location, namespace?: string[]): Identifier {
+export function createNamepath(name: string, location: Location, namespace?: string[]): NamePathNode {
     return {
         type: 'Identifier',
         name,

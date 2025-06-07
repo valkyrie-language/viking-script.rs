@@ -1,11 +1,7 @@
 import {ASTNode} from './index';
 
-export interface LiteralNode extends ASTNode {
-    type: 'Literal';
-    kind: string;
-}
 
-export type Literal =
+export type LiteralNode =
     | NumberLiteral
     | StringLiteral
     | BooleanLiteral

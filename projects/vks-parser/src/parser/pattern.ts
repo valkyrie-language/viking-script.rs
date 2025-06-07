@@ -1,6 +1,5 @@
 import {
     Parser,
-    ParseState,
     ParseResult,
     map,
     choice,
@@ -36,6 +35,7 @@ import {
 import { parseLiteral } from './literal';
 import { parseTypeAnnotation } from './type';
 import { parseExpression } from './expression';
+import {ParseState} from "@helper/parseState";
 
 // 标识符模式解析器
 export function parseIdentifierPattern(): Parser<IdentifierPattern> {

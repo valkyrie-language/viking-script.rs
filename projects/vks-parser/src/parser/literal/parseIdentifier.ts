@@ -1,6 +1,7 @@
 // 标识符解析器
-import {failure, Parser, ParseState, success} from "@helper";
-import {IdentifierLiteral} from "viking-hir";
+import {failure, Parser, success} from "@helper";
+import {BooleanLiteral, IdentifierLiteral, NullLiteral} from "viking-hir";
+import {ParseState} from "@helper/parseState";
 
 export function parseIdentifier(state: ParseState): Parser<IdentifierLiteral> {
     const start = state.position;
@@ -22,48 +23,38 @@ export function parseIdentifier(state: ParseState): Parser<IdentifierLiteral> {
 
 // null 字面量解析器
 export function parseNullLiteral(state: ParseState): Parser<NullLiteral> {
-    return (state: ParseState) => {
-        const result = parseIdentifier(state);
-        if (!result.success) {
-            return result;
+    const id = parseIdentifier(state);
+    if (id.success) {
+        if (id.value.value == "null") {
+            return success(state, {
+                type: "NullLiteral",
+                location: id.value.location
+            })
         }
-        const location = state.createLocation(startPos);
-        return {
-            success: true,
-            value: createNullLiteral(location),
-            state
-        };
-    };
+        return failure(state, `except \`null\``, id.value.location.start);
+    }
+    return id;
 }
 
 // 布尔字面量解析器
-export function parseBooleanLiteral(): Parser<BooleanLiteral> {
-    return (state: ParseState) => {
-        const startPos = state.position;
-        const trueResult = matchString('true')(state);
-        if (trueResult.success) {
-            const location = state.createLocation(startPos);
-            return {
-                success: true,
-                value: createBooleanLiteral(true, location),
-                state
-            };
+export function parseBooleanLiteral(state: ParseState): Parser<BooleanLiteral> {
+    const id = parseIdentifier(state);
+    if (id.success) {
+        if (id.value.value == "true") {
+            return success(state, {
+                type: "BooleanLiteral",
+                value: true,
+                location: id.value.location
+            })
         }
-
-        const falseResult = matchString('false')(state);
-        if (falseResult.success) {
-            const location = state.createLocation(startPos);
-            return {
-                success: true,
-                value: createBooleanLiteral(false, location),
-                state
-            };
+        if (id.value.value == "false") {
+            return success(state, {
+                type: "BooleanLiteral",
+                value: false,
+                location: id.value.location
+            })
         }
-
-        return {
-            success: false,
-            errors: state.errors,
-            state
-        };
-    };
+        return failure(state, `except \`null\``, id.value.location.start);
+    }
+    return id;
 }

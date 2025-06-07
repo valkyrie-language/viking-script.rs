@@ -58,3 +58,4 @@ export {
 } from './statement';
 export {parseStringLiteral} from "./literal/parseStringLiteral";
 export {parseIdentifier} from "@parser/literal/parseIdentifier";
+export {parseNumberLiteral} from "@parser/literal/parseNumberLiteral";

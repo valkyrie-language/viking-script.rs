@@ -1,51 +1,53 @@
 import {
-    Parser,
-    ParseState,
-    ParseResult,
-    map,
     choice,
-    sequence,
-    optional,
-    many,
-    sepBy,
     keyword,
-    parseIdentifier,
+    many,
+    map,
     matchString,
+    optional,
+    Parser,
+    sepBy,
+    sequence,
     skipWhitespaceAndComments
 } from '../helper';
 import {
-    Expression,
-    Identifier,
-    BinaryExpression,
-    UnaryExpression,
-    AssignmentExpression,
-    CallExpression,
-    MemberExpression,
-    ConditionalExpression,
     ArrayExpression,
-    ObjectExpression,
-    FunctionExpression,
     ArrowFunctionExpression,
-    YieldExpression,
+    AssignmentExpression,
     AwaitExpression,
-    MatchExpression,
-    MatchCase,
-    ObjectProperty,
-    createNamepath,
+    ConditionalExpression,
     createBinaryExpression,
-    createCallExpression
+    createCallExpression,
+    createNamepath,
+    Expression,
+    FunctionExpression,
+    MatchCase,
+    MatchExpression,
+    MemberExpression,
+    NamePathNode,
+    ObjectExpression,
+    ObjectProperty,
+    UnaryExpression,
+    YieldExpression
 } from 'viking-hir';
-import { parseLiteral } from './literal';
-import { parseTypeAnnotation } from './type';
-import { parsePattern } from './pattern';
-import { parseStatement, parseBlockStatement } from './statement';
-import {parseIdentifier} from "@parser/literal/parseIdentifier";
+import {parseTypeAnnotation} from './type';
+import {parsePattern} from './pattern';
+import {parseBlockStatement, parseStatement} from './statement';
+import {
+    parseBooleanLiteral,
+    parseIdentifier,
+    parseNullLiteral,
+    parseStringLiteral
+} from "@parser/literal";
+import {ParseState} from "@helper/parseState";
+import {parseNumberLiteral} from "@parser/literal/parseNumberLiteral";
+
+
 
 // 标识符解析器
-export function parseNamepath(): Parser<Identifier> {
+export function parseNamepath(): Parser<NamePathNode> {
     return (state: ParseState) => {
         const startPos = state.position;
-        skipWhitespaceAndComments()(state);
 
         // 解析命名空间
         const namespaceResult = sepBy(parseIdentifier(), matchString('.'))(state);
@@ -84,12 +86,12 @@ export function parseArrayExpression(): Parser<ArrayExpression> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const openResult = matchString('[')(state);
         if (!openResult.success) {
             return openResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const elementsResult = sepBy(
             choice(
@@ -101,13 +103,13 @@ export function parseArrayExpression(): Parser<ArrayExpression> {
         if (!elementsResult.success) {
             return elementsResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const closeResult = matchString(']')(state);
         if (!closeResult.success) {
             return closeResult as any;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -125,7 +127,7 @@ export function parseArrayExpression(): Parser<ArrayExpression> {
 function parseObjectProperty(): Parser<ObjectProperty> {
     return (state: ParseState) => {
         skipWhitespaceAndComments()(state);
-        
+
         // 解析键
         const keyResult = choice(
             parseIdentifier(),
@@ -134,9 +136,9 @@ function parseObjectProperty(): Parser<ObjectProperty> {
         if (!keyResult.success) {
             return keyResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
-        
+
         // 检查是否是简写形式
         const colonResult = optional(matchString(':'))(state);
         if (colonResult.value === null) {
@@ -161,17 +163,17 @@ function parseObjectProperty(): Parser<ObjectProperty> {
                 };
             }
         }
-        
+
         skipWhitespaceAndComments()(state);
         const valueResult = parseExpression()(state);
         if (!valueResult.success) {
             return valueResult;
         }
-        
+
         return {
             success: true,
             value: {
-                key: typeof keyResult.value === 'string' 
+                key: typeof keyResult.value === 'string'
                     ? createNamepath(keyResult.value, state.createLocation(state.position))
                     : keyResult.value,
                 value: valueResult.value,
@@ -188,24 +190,24 @@ export function parseObjectExpression(): Parser<ObjectExpression> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const openResult = matchString('{')(state);
         if (!openResult.success) {
             return openResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const propertiesResult = sepBy(parseObjectProperty(), matchString(','))(state);
         if (!propertiesResult.success) {
             return propertiesResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const closeResult = matchString('}')(state);
         if (!closeResult.success) {
             return closeResult as any;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -224,51 +226,51 @@ export function parseFunctionExpression(): Parser<FunctionExpression> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const asyncResult = optional(keyword('async'))(state);
         const async = asyncResult.value !== null;
-        
+
         skipWhitespaceAndComments()(state);
         const generatorResult = optional(keyword('yield'))(state);
         const generator = generatorResult.value !== null;
-        
+
         skipWhitespaceAndComments()(state);
         const functionResult = keyword('function')(state);
         if (!functionResult.success) {
             return functionResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const idResult = optional(parseNamepath())(state);
-        
+
         skipWhitespaceAndComments()(state);
         const openResult = matchString('(')(state);
         if (!openResult.success) {
             return openResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const paramsResult = sepBy(parsePattern(), matchString(','))(state);
         if (!paramsResult.success) {
             return paramsResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const closeResult = matchString(')')(state);
         if (!closeResult.success) {
             return closeResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const returnTypeResult = optional(sequence(matchString('->'), parseTypeAnnotation()))(state);
         const returnType = returnTypeResult.value ? returnTypeResult.value[1] : undefined;
-        
+
         skipWhitespaceAndComments()(state);
         const bodyResult = parseBlockStatement()(state);
         if (!bodyResult.success) {
             return bodyResult;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -292,33 +294,33 @@ export function parseArrowFunctionExpression(): Parser<ArrowFunctionExpression> 
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const asyncResult = optional(keyword('async'))(state);
         const async = asyncResult.value !== null;
-        
+
         skipWhitespaceAndComments()(state);
-        
+
         // 解析参数
         const paramsResult = choice(
             // 单个参数不带括号
-            map(parseNamepath(), (id) => [{ type: 'Pattern', kind: 'Identifier', name: id.name, location: id.location }]),
+            map(parseNamepath(), (id) => [{type: 'Pattern', kind: 'Identifier', name: id.name, location: id.location}]),
             // 多个参数或带括号的参数
             map(sequence(matchString('('), sepBy(parsePattern(), matchString(',')), matchString(')')), ([, params]) => params)
         )(state);
         if (!paramsResult.success) {
             return paramsResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const returnTypeResult = optional(sequence(matchString('->'), parseTypeAnnotation()))(state);
         const returnType = returnTypeResult.value ? returnTypeResult.value[1] : undefined;
-        
+
         skipWhitespaceAndComments()(state);
         const arrowResult = matchString('=>')(state);
         if (!arrowResult.success) {
             return arrowResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const bodyResult = choice(
             parseBlockStatement(),
@@ -327,7 +329,7 @@ export function parseArrowFunctionExpression(): Parser<ArrowFunctionExpression> 
         if (!bodyResult.success) {
             return bodyResult;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -349,19 +351,19 @@ export function parseYieldExpression(): Parser<YieldExpression> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const yieldResult = keyword('yield')(state);
         if (!yieldResult.success) {
             return yieldResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const fromResult = optional(keyword('from'))(state);
         const delegate = fromResult.value !== null;
-        
+
         skipWhitespaceAndComments()(state);
         const argumentResult = optional(parseExpression())(state);
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -381,18 +383,18 @@ export function parseAwaitExpression(): Parser<AwaitExpression> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const awaitResult = keyword('await')(state);
         if (!awaitResult.success) {
             return awaitResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const argumentResult = parseExpression()(state);
         if (!argumentResult.success) {
             return argumentResult;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -410,43 +412,43 @@ export function parseAwaitExpression(): Parser<AwaitExpression> {
 function parseMatchCase(): Parser<MatchCase> {
     return (state: ParseState) => {
         skipWhitespaceAndComments()(state);
-        
+
         const caseResult = keyword('case')(state);
         if (!caseResult.success) {
             return caseResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const patternResult = parsePattern()(state);
         if (!patternResult.success) {
             return patternResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const guardResult = optional(sequence(keyword('if'), parseExpression()))(state);
         const guard = guardResult.value ? guardResult.value[1] : undefined;
-        
+
         skipWhitespaceAndComments()(state);
         const colonResult = matchString(':')(state);
         if (!colonResult.success) {
             return colonResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const consequentResult = many(parseStatement())(state);
         if (!consequentResult.success) {
             return consequentResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const fallthroughResult = optional(choice(
-            map(keyword('fallthrough!'), () => ({ fallthrough: true, forced: true })),
-            map(keyword('fallthrough'), () => ({ fallthrough: true, forced: false }))
+            map(keyword('fallthrough!'), () => ({fallthrough: true, forced: true})),
+            map(keyword('fallthrough'), () => ({fallthrough: true, forced: false}))
         ))(state);
-        
+
         const fallthrough = fallthroughResult.value?.fallthrough || false;
         const fallthroughForced = fallthroughResult.value?.forced || false;
-        
+
         return {
             success: true,
             value: {
@@ -466,36 +468,36 @@ export function parseMatchExpression(): Parser<MatchExpression> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         const matchResult = keyword('match')(state);
         if (!matchResult.success) {
             return matchResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const discriminantResult = parseExpression()(state);
         if (!discriminantResult.success) {
             return discriminantResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const openResult = matchString('{')(state);
         if (!openResult.success) {
             return openResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const casesResult = many(parseMatchCase())(state);
         if (!casesResult.success) {
             return casesResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const closeResult = matchString('}')(state);
         if (!closeResult.success) {
             return closeResult as any;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -517,11 +519,11 @@ function parsePostfixExpression(): Parser<Expression> {
         if (!expr.success) {
             return expr;
         }
-        
+
         while (state.notEof()) {
             const startState = state.clone();
             skipWhitespaceAndComments()(state);
-            
+
             // 成员访问
             const dotResult = matchString('.')(state);
             if (dotResult.success) {
@@ -543,7 +545,7 @@ function parsePostfixExpression(): Parser<Expression> {
                     continue;
                 }
             }
-            
+
             // 计算成员访问
             state.position = startState.position;
             skipWhitespaceAndComments()(state);
@@ -571,7 +573,7 @@ function parsePostfixExpression(): Parser<Expression> {
                     }
                 }
             }
-            
+
             // 函数调用
             state.position = startState.position;
             skipWhitespaceAndComments()(state);
@@ -593,7 +595,7 @@ function parsePostfixExpression(): Parser<Expression> {
                     }
                 }
             }
-            
+
             // 泛型调用
             state.position = startState.position;
             skipWhitespaceAndComments()(state);
@@ -627,12 +629,12 @@ function parsePostfixExpression(): Parser<Expression> {
                     }
                 }
             }
-            
+
             // 没有匹配到任何后缀操作符，退出循环
             state.position = startState.position;
             break;
         }
-        
+
         return expr;
     };
 }
@@ -645,9 +647,9 @@ function parseUnaryExpression(): Parser<Expression> {
         (state: ParseState) => {
             const startPos = state.position;
             skipWhitespaceAndComments()(state);
-            
+
             const operators = ['+', '-', '!', '~', 'typeof', 'void', 'delete'];
-            
+
             for (const op of operators) {
                 const opResult = keyword(op)(state);
                 if (opResult.success) {
@@ -669,7 +671,7 @@ function parseUnaryExpression(): Parser<Expression> {
                     }
                 }
             }
-            
+
             return parsePostfixExpression()(state);
         }
     );
@@ -682,41 +684,41 @@ function parseBinaryExpression(minPrec: number = 0): Parser<Expression> {
         if (!left.success) {
             return left;
         }
-        
+
         while (state.notEof()) {
             const startState = state.clone();
             skipWhitespaceAndComments()(state);
-            
+
             // 获取操作符
             const operators = [
-                { op: '**', prec: 14, assoc: 'right' },
-                { op: '*', prec: 13, assoc: 'left' },
-                { op: '/', prec: 13, assoc: 'left' },
-                { op: '%', prec: 13, assoc: 'left' },
-                { op: '+', prec: 12, assoc: 'left' },
-                { op: '-', prec: 12, assoc: 'left' },
-                { op: '<<', prec: 11, assoc: 'left' },
-                { op: '>>', prec: 11, assoc: 'left' },
-                { op: '>>>', prec: 11, assoc: 'left' },
-                { op: '<', prec: 10, assoc: 'left' },
-                { op: '<=', prec: 10, assoc: 'left' },
-                { op: '>', prec: 10, assoc: 'left' },
-                { op: '>=', prec: 10, assoc: 'left' },
-                { op: 'in', prec: 10, assoc: 'left' },
-                { op: 'instanceof', prec: 10, assoc: 'left' },
-                { op: 'is', prec: 10, assoc: 'left' },
-                { op: '==', prec: 9, assoc: 'left' },
-                { op: '!=', prec: 9, assoc: 'left' },
-                { op: '===', prec: 9, assoc: 'left' },
-                { op: '!==', prec: 9, assoc: 'left' },
-                { op: '&', prec: 8, assoc: 'left' },
-                { op: '^', prec: 7, assoc: 'left' },
-                { op: '|', prec: 6, assoc: 'left' },
-                { op: '&&', prec: 5, assoc: 'left' },
-                { op: '||', prec: 4, assoc: 'left' },
-                { op: '??', prec: 4, assoc: 'left' }
+                {op: '**', prec: 14, assoc: 'right'},
+                {op: '*', prec: 13, assoc: 'left'},
+                {op: '/', prec: 13, assoc: 'left'},
+                {op: '%', prec: 13, assoc: 'left'},
+                {op: '+', prec: 12, assoc: 'left'},
+                {op: '-', prec: 12, assoc: 'left'},
+                {op: '<<', prec: 11, assoc: 'left'},
+                {op: '>>', prec: 11, assoc: 'left'},
+                {op: '>>>', prec: 11, assoc: 'left'},
+                {op: '<', prec: 10, assoc: 'left'},
+                {op: '<=', prec: 10, assoc: 'left'},
+                {op: '>', prec: 10, assoc: 'left'},
+                {op: '>=', prec: 10, assoc: 'left'},
+                {op: 'in', prec: 10, assoc: 'left'},
+                {op: 'instanceof', prec: 10, assoc: 'left'},
+                {op: 'is', prec: 10, assoc: 'left'},
+                {op: '==', prec: 9, assoc: 'left'},
+                {op: '!=', prec: 9, assoc: 'left'},
+                {op: '===', prec: 9, assoc: 'left'},
+                {op: '!==', prec: 9, assoc: 'left'},
+                {op: '&', prec: 8, assoc: 'left'},
+                {op: '^', prec: 7, assoc: 'left'},
+                {op: '|', prec: 6, assoc: 'left'},
+                {op: '&&', prec: 5, assoc: 'left'},
+                {op: '||', prec: 4, assoc: 'left'},
+                {op: '??', prec: 4, assoc: 'left'}
             ];
-            
+
             let foundOp = null;
             for (const opInfo of operators) {
                 const opResult = matchString(opInfo.op)(state);
@@ -725,12 +727,12 @@ function parseBinaryExpression(minPrec: number = 0): Parser<Expression> {
                     break;
                 }
             }
-            
+
             if (!foundOp || foundOp.prec < minPrec) {
                 state.position = startState.position;
                 break;
             }
-            
+
             const nextMinPrec = foundOp.assoc === 'left' ? foundOp.prec + 1 : foundOp.prec;
             skipWhitespaceAndComments()(state);
             const right = parseBinaryExpression(nextMinPrec)(state);
@@ -738,7 +740,7 @@ function parseBinaryExpression(minPrec: number = 0): Parser<Expression> {
                 state.position = startState.position;
                 break;
             }
-            
+
             const location = state.createLocation(startState.position);
             left = {
                 success: true,
@@ -746,7 +748,7 @@ function parseBinaryExpression(minPrec: number = 0): Parser<Expression> {
                 state
             };
         }
-        
+
         return left;
     };
 }
@@ -759,31 +761,31 @@ function parseConditionalExpression(): Parser<Expression> {
         if (!testResult.success) {
             return testResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const questionResult = matchString('?')(state);
         if (!questionResult.success) {
             return testResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const consequentResult = parseExpression()(state);
         if (!consequentResult.success) {
             return consequentResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const colonResult = matchString(':')(state);
         if (!colonResult.success) {
             return colonResult as any;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const alternateResult = parseExpression()(state);
         if (!alternateResult.success) {
             return alternateResult;
         }
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
@@ -807,10 +809,10 @@ function parseAssignmentExpression(): Parser<Expression> {
         if (!leftResult.success) {
             return leftResult;
         }
-        
+
         skipWhitespaceAndComments()(state);
         const operators = ['=', '+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='];
-        
+
         for (const op of operators) {
             const opResult = matchString(op)(state);
             if (opResult.success) {
@@ -832,7 +834,7 @@ function parseAssignmentExpression(): Parser<Expression> {
                 }
             }
         }
-        
+
         return leftResult;
     };
 }

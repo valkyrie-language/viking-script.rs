@@ -28,7 +28,8 @@ export type NodeType =
     | "NullLiteral"
     | "UndefinedLiteral"
     // Identifiers
-    | "Identifier"
+    | "IdentifierNode"
+    | "NamePathNode"
     // Expressions
     | "BinaryExpression"
     | "UnaryExpression"

@@ -1,6 +1,7 @@
-import { ParseState, ParseResult, recover, syncTo } from './helper';
+import { ParseResult, recover, syncTo } from './helper';
 import { parseProgram } from './parser';
 import { Program, Position, Location, ParseError } from 'viking-hir';
+import {ParseState} from "@helper/parseState";
 
 /**
  * 解析 Viking 语言源代码
@@ -188,3 +189,4 @@ export * from './parser';
 
 // 导出类型定义
 export { Program, Position, Location, ParseError } from 'viking-hir';
+export {ParseState} from "@helper/parseState";

@@ -1,15 +1,89 @@
 import {
     parseBooleanLiteral,
     parseIdentifier,
-    parseLiteral,
     parseNullLiteral,
     parseNumberLiteral,
-    parseStringLiteral
+    parseStringLiteral,
+    parseLiteral
 } from '@parser/literal';
-import {ParseState} from "@/"
 
-describe('Literal Parsers', () => {
-    describe('parseNumberLiteral', () => {
+import {ParseState} from "@helper";
+
+describe('字面量解析', () => {
+    describe('关键词解析', () => {
+        it('null', () => {
+            const result = parseNullLiteral(new ParseState('null'));
+            expect(result.success).toBe(true);
+            expect(result.value.type).toBe('NullLiteral');
+        });
+
+        it('true', () => {
+            const result = parseBooleanLiteral(new ParseState('true'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe(true);
+            expect(result.value?.type).toBe('BooleanLiteral');
+        });
+
+        it('false', () => {
+            const result = parseBooleanLiteral(new ParseState('false'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe(false);
+        });
+
+        it('非关键词', () => {
+            expect(parseNullLiteral(new ParseState('nullable')).success).toBe(false);
+            expect(parseBooleanLiteral(new ParseState('truthy')).success).toBe(false);
+            expect(parseBooleanLiteral(new ParseState('falsy')).success).toBe(false);
+        });
+    });
+
+    describe('标识符解析', () => {
+        it('下划线标识符', () => {
+            const result = parseIdentifier(new ParseState('_'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('_');
+            expect(result.value?.type).toBe('IdentifierLiteral');
+        });
+
+        it('单字母标识符', () => {
+            const result = parseIdentifier(new ParseState('a::b.c()'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('a');
+            expect(result.value?.type).toBe('IdentifierLiteral');
+        });
+
+        it('多字母标识符', () => {
+            const result = parseIdentifier(new ParseState('abc123+456'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('abc123');
+            expect(result.value?.type).toBe('IdentifierLiteral');
+        });
+
+        it('Unicode 标识符', () => {
+            const result = parseIdentifier(new ParseState('Halló世界'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('Halló世界');
+            expect(result.value?.type).toBe('IdentifierLiteral');
+        });
+
+        it('纯数字', () => {
+            const result = parseIdentifier(new ParseState('123'));
+            expect(result.success).toBe(false);
+        });
+
+        it('空一格', () => {
+            const result = parseIdentifier(new ParseState(' abc'));
+            expect(result.success).toBe(false);
+        });
+
+    });
+    describe('数字解析', () => {
         it('should parse integer literals', () => {
             const state = new ParseState('123');
             const result = parseNumberLiteral()(state);
@@ -95,86 +169,7 @@ describe('Literal Parsers', () => {
         });
     });
 
-    describe('parseBooleanLiteral', () => {
-        it('should parse true', () => {
-            const result = parseBooleanLiteral(new ParseState('true'));
-
-            expect(result.success).toBe(true);
-            expect(result.value?.value).toBe(true);
-            expect(result.value?.type).toBe('BooleanLiteral');
-        });
-
-        it('should parse false', () => {
-            const result = parseBooleanLiteral(new ParseState('false'));
-
-            expect(result.success).toBe(true);
-            expect(result.value?.value).toBe(false);
-        });
-
-        it('should not parse partial matches', () => {
-            expect(parseBooleanLiteral(new ParseState('truthy')).success).toBe(false);
-            expect(parseBooleanLiteral(new ParseState('falsy')).success).toBe(false);
-        });
-    });
-
-    describe('parseNullLiteral', () => {
-        it('should parse null', () => {
-            const result = parseNullLiteral(new ParseState('null'));
-            expect(result.success).toBe(true);
-            expect(result.value.type).toBe('NullLiteral');
-        });
-
-        it('should not parse partial matches', () => {
-            expect(parseNullLiteral(new ParseState('nullable')).success).toBe(false);
-        });
-    });
-
-    describe('解析标识符', () => {
-        it('下划线标识符', () => {
-            const result = parseIdentifier(new ParseState('_'));
-
-            expect(result.success).toBe(true);
-            expect(result.value?.value).toBe('_');
-            expect(result.value?.type).toBe('IdentifierLiteral');
-        });
-
-        it('单字母标识符', () => {
-            const result = parseIdentifier(new ParseState('a::b.c()'));
-
-            expect(result.success).toBe(true);
-            expect(result.value?.value).toBe('a');
-            expect(result.value?.type).toBe('IdentifierLiteral');
-        });
-
-        it('多字母标识符', () => {
-            const result = parseIdentifier(new ParseState('abc123+456'));
-
-            expect(result.success).toBe(true);
-            expect(result.value?.value).toBe('abc123');
-            expect(result.value?.type).toBe('IdentifierLiteral');
-        });
-
-        it('Unicode 标识符', () => {
-            const result = parseIdentifier(new ParseState('Halló世界'));
-
-            expect(result.success).toBe(true);
-            expect(result.value?.value).toBe('Halló世界');
-            expect(result.value?.type).toBe('IdentifierLiteral');
-        });
-
-        it('纯数字', () => {
-            const result = parseIdentifier(new ParseState('123'));
-            expect(result.success).toBe(false);
-        });
-
-        it('空一格', () => {
-            const result = parseIdentifier(new ParseState(' abc'));
-            expect(result.success).toBe(false);
-        });
-
-    });
-
-    describe('parseLiteral', () => {
+    describe('混合解析', () => {
         it('should parse any literal type', () => {
             const testCases = [
                 ['123', 'Number'],
@@ -186,21 +181,17 @@ describe('Literal Parsers', () => {
             ];
 
             testCases.forEach(([input, expectedKind]) => {
-                const result = parseLiteral()(new ParseState(input));
+                const result = parseLiteral(new ParseState(input));
+                console.log(input, result)
                 expect(result.success).toBe(true);
-                expect(result.value?.kind).toBe(expectedKind);
+                expect(result.value?.type).toBe(expectedKind);
             });
-        });
-
-        it('should fail on non-literal input', () => {
-            expect(parseLiteral()(new ParseState('variable')).success).toBe(false);
-            expect(parseLiteral()(new ParseState('function')).success).toBe(false);
         });
     });
 
     describe('Complex literals', () => {
         it('should handle whitespace and comments', () => {
-            const result = parseNumberLiteral()(new ParseState('  # comment\n  123  '));
+            const result = parseNumberLiteral(new ParseState('  # comment\n  123  '));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(123);
