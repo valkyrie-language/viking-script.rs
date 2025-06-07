@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     include: ['**/*.{test,spec}.{js,ts}', 'tests/main.js'],
     environment: 'node',
-    globals: true
+    globals: true,
+    logHeapUsage: true,
+    verbose: true
   }
 });

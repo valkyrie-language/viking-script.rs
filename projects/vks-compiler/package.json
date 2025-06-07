@@ -22,7 +22,10 @@
     "author": "Viking Script Team",
     "license": "MIT",
     "dependencies": {
-        "source-map": "^0.7.4"
+        "source-map": "^0.7.4",
+        "viking-parser": "workspace:*",
+        "viking-runtime": "workspace:*",
+        "viking-hir": "workspace:*"
     },
     "devDependencies": {
         "typescript": "^5.0.0",
