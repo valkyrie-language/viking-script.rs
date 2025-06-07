@@ -13,78 +13,6 @@ export interface ObjectPatternProperty {
     shorthand: boolean;
 }
 
-export interface IdentifierPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Identifier';
-    name: string;
-    typeAnnotation?: TypeAnnotation;
-}
-
-export interface LiteralPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Literal';
-    value: any;
-}
-
-export interface ArrayPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Array';
-    elements: (Pattern | null)[];
-}
-
-
-export interface ObjectPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Object';
-    properties: ObjectPatternProperty[];
-}
-
-export interface RestPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Rest';
-    argument: Pattern;
-}
-
-export interface WildcardPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Wildcard'; // _ 通配符
-}
-
-export interface TypePattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Type';
-    typeAnnotation: TypeAnnotation;
-    condition?: Expression; // type Student if age > 10
-}
-
-export interface ConditionPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Condition';
-    condition: Expression;
-}
-
-export interface DestructurePattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Destructure';
-    typeName: string;
-    fields: { name: string; pattern: Pattern }[];
-}
-
-export interface GuardPattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Guard';
-    pattern: Pattern;
-    guard: Expression;
-}
-
-export interface RangePattern extends ASTNode {
-    type: 'Pattern';
-    kind: 'Range';
-    start: Expression;
-    end: Expression;
-    inclusive: boolean;
-}
-
 export type Pattern =
     | IdentifierPattern
     | LiteralPattern
@@ -97,6 +25,68 @@ export type Pattern =
     | DestructurePattern
     | GuardPattern
     | RangePattern;
+
+export interface IdentifierPattern extends PatternNode {
+    kind: 'Identifier';
+    name: string;
+    typeAnnotation?: TypeAnnotation;
+}
+
+export interface LiteralPattern extends PatternNode {
+    kind: 'Literal';
+    value: any;
+}
+
+export interface ArrayPattern extends PatternNode {
+    kind: 'Array';
+    elements: (Pattern | null)[];
+}
+
+
+export interface ObjectPattern extends PatternNode {
+    kind: 'Object';
+    properties: ObjectPatternProperty[];
+}
+
+export interface RestPattern extends PatternNode {
+    kind: 'Rest';
+    argument: Pattern;
+}
+
+export interface WildcardPattern extends PatternNode {
+    kind: 'Wildcard';
+}
+
+export interface TypePattern extends PatternNode {
+    kind: 'Type';
+    typeAnnotation: TypeAnnotation;
+    condition?: Expression;
+}
+
+export interface ConditionPattern extends PatternNode {
+    kind: 'Condition';
+    condition: Expression;
+}
+
+export interface DestructurePattern extends PatternNode {
+    kind: 'Destructure';
+    typeName: string;
+    fields: { name: string; pattern: Pattern }[];
+}
+
+export interface GuardPattern extends PatternNode {
+    kind: 'Guard';
+    pattern: Pattern;
+    guard: Expression;
+}
+
+export interface RangePattern extends PatternNode {
+    kind: 'Range';
+    start: Expression;
+    end: Expression;
+    inclusive: boolean;
+}
+
 
 // 工厂函数
 export function createIdentifierPattern(

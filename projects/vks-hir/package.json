@@ -2,6 +2,13 @@
     "name": "viking-hir",
     "version": "0.1.0",
     "description": "Viking Script High-Level Intermediate Representation (HIR) AST Definitions",
+    "keywords": [
+        "viking",
+        "hir",
+        "ast",
+        "compiler",
+        "typescript"
+    ],
     "type": "module",
     "exports": {
         ".": {
@@ -16,13 +23,6 @@
         "test": "vitest",
         "clean": "rimraf dist"
     },
-    "keywords": [
-        "viking",
-        "hir",
-        "ast",
-        "compiler",
-        "typescript"
-    ],
     "author": "Viking Script Team",
     "license": "MIT",
     "devDependencies": {
