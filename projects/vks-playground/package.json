@@ -1,13 +1,11 @@
 {
-    "name": "vks-tools",
-    "version": "0.1.0",
+    "private": true,
+    "name": "vks-playground",
+    "version": "1.0.0",
     "description": "Viking Script Development Tools",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
     "scripts": {
         "build": "vite build",
         "dev": "vite build --watch",
-        "test": "vitest --run",
         "clean": "rimraf dist"
     },
     "keywords": [
@@ -19,12 +17,15 @@
     "author": "Viking Script Team",
     "license": "MIT",
     "devDependencies": {
-        "typescript": "^5.0.0",
         "@types/node": "^20.0.0",
+        "typescript": "^5.0.0",
         "vite": "^5.0.0",
         "vitest": "^1.0.0"
     },
     "engines": {
         "node": ">=16.0.0"
+    },
+    "dependencies": {
+        "monaco-editor": "^0.52.2"
     }
 }

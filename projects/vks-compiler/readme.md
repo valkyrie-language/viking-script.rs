@@ -247,7 +247,7 @@ src/
 │   ├── pattern.ts
 │   └── type.ts
 ├── lexer.ts            # 词法分析器
-├── parser.ts           # 语法分析器
+├── index.ts           # 语法分析器
 ├── symbol-table.ts     # 符号表管理
 ├── type-checker.ts     # 类型检查器
 ├── transformer.ts      # CPS 变换器
