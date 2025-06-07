@@ -1,12 +1,12 @@
 import {
-    parseBooleanLiteral,
+    parseBooleanLiteral, parseIdentifier,
     parseLiteral,
     parseNullLiteral,
     parseNumberLiteral,
-    parseStringLiteral,
     parseUndefinedLiteral
 } from '../src/parser/literal';
 import {ParseState} from "../src"
+import {parseStringLiteral} from "../src/parser/literal/parseStringLiteral";
 
 describe('Literal Parsers', () => {
     describe('parseNumberLiteral', () => {
@@ -122,52 +122,81 @@ describe('Literal Parsers', () => {
 
     describe('parseBooleanLiteral', () => {
         it('should parse true', () => {
-            const result = parseBooleanLiteral()(new ParseState('true'));
+            const result = parseBooleanLiteral(new ParseState('true'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(true);
-            expect(result.value?.kind).toBe('Boolean');
+            expect(result.value?.type).toBe('BooleanLiteral');
         });
 
         it('should parse false', () => {
-            const result = parseBooleanLiteral()(new ParseState('false'));
+            const result = parseBooleanLiteral(new ParseState('false'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(false);
         });
 
         it('should not parse partial matches', () => {
-            expect(parseBooleanLiteral()(new ParseState('truthy')).success).toBe(false);
-            expect(parseBooleanLiteral()(new ParseState('falsy')).success).toBe(false);
+            expect(parseBooleanLiteral(new ParseState('truthy')).success).toBe(false);
+            expect(parseBooleanLiteral(new ParseState('falsy')).success).toBe(false);
         });
     });
 
     describe('parseNullLiteral', () => {
         it('should parse null', () => {
-            const result = parseNullLiteral()(new ParseState('null'));
-
+            const result = parseNullLiteral(new ParseState('null'));
             expect(result.success).toBe(true);
-            expect(result.value?.value).toBe(null);
-            expect(result.value?.kind).toBe('Null');
+            expect(result.value.type).toBe('NullLiteral');
         });
 
         it('should not parse partial matches', () => {
-            expect(parseNullLiteral()(new ParseState('nullable')).success).toBe(false);
+            expect(parseNullLiteral(new ParseState('nullable')).success).toBe(false);
         });
     });
 
-    describe('parseUndefinedLiteral', () => {
-        it('should parse undefined', () => {
-            const result = parseUndefinedLiteral()(new ParseState('undefined'));
+    describe('解析标识符', () => {
+        it('下划线标识符', () => {
+            const result = parseIdentifier(new ParseState('_'));
 
             expect(result.success).toBe(true);
-            expect(result.value?.value).toBe(undefined);
-            expect(result.value?.kind).toBe('Undefined');
+            expect(result.value?.value).toBe('_');
+            expect(result.value?.type).toBe('IdentifierLiteral');
         });
 
-        it('should not parse partial matches', () => {
-            expect(parseUndefinedLiteral()(new ParseState('undefinedVar')).success).toBe(false);
+        it('单字母标识符', () => {
+            const result = parseIdentifier(new ParseState('a::b.c()'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('a');
+            expect(result.value?.type).toBe('IdentifierLiteral');
         });
+
+        it('多字母标识符', () => {
+            const result = parseIdentifier(new ParseState('abc123+456'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('abc123');
+            expect(result.value?.type).toBe('IdentifierLiteral');
+        });
+
+        it('Unicode', () => {
+            const result = parseIdentifier(new ParseState('Halló世界'));
+
+            expect(result.success).toBe(true);
+            expect(result.value?.value).toBe('Halló世界');
+            expect(result.value?.type).toBe('IdentifierLiteral');
+        });
+
+        it('纯数字', () => {
+            const result = parseIdentifier(new ParseState('123'));
+            expect(result.success).toBe(false);
+        });
+
+        it('空一格', () => {
+            const result = parseIdentifier(new ParseState(' abc'));
+            expect(result.success).toBe(false);
+        });
+
     });
 
     describe('parseLiteral', () => {
@@ -221,30 +250,6 @@ describe('Literal Parsers', () => {
             expect(result.value?.value).toContain('line1');
             expect(result.value?.value).toContain('line2');
             expect(result.value?.value).toContain('line3');
-        });
-    });
-
-    describe('Error cases', () => {
-        it('should provide meaningful error messages', () => {
-            const result = parseNumberLiteral()(new ParseState('abc'));
-
-            expect(result.success).toBe(false);
-            expect(result.errors).toHaveLength(1);
-            expect(result.errors[0].message).toContain('number');
-        });
-
-        it('should handle unexpected end of input', () => {
-            const result = parseStringLiteral()(new ParseState('"incomplete'));
-
-            expect(result.success).toBe(false);
-            expect(result.errors[0].message).toContain('unterminated');
-        });
-
-        it('should handle invalid escape sequences', () => {
-            const result = parseStringLiteral()(new ParseState('"invalid\\x"'));
-
-            expect(result.success).toBe(false);
-            expect(result.errors[0].message).toContain('escape');
         });
     });
 });

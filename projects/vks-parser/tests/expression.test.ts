@@ -1,5 +1,5 @@
 import {
-    parseIdentifier,
+    parseNamepath,
     parseBinaryExpression,
     parseUnaryExpression,
     parseFunctionCall,
@@ -11,7 +11,7 @@ import {
 describe('Expression Parsers', () => {
     describe('parseIdentifier', () => {
         it('should parse simple identifiers', () => {
-            const result = parseIdentifier()('variable', 0);
+            const result = parseNamepath()('variable', 0);
             
             expect(result.success).toBe(true);
             expect(result.value?.name).toBe('variable');
@@ -19,27 +19,27 @@ describe('Expression Parsers', () => {
         });
         
         it('should parse identifiers with underscores', () => {
-            const result = parseIdentifier()('_private_var', 0);
+            const result = parseNamepath()('_private_var', 0);
             
             expect(result.success).toBe(true);
             expect(result.value?.name).toBe('_private_var');
         });
         
         it('should parse identifiers with numbers', () => {
-            const result = parseIdentifier()('var123', 0);
+            const result = parseNamepath()('var123', 0);
             
             expect(result.success).toBe(true);
             expect(result.value?.name).toBe('var123');
         });
         
         it('should fail on keywords', () => {
-            expect(parseIdentifier()('let', 0).success).toBe(false);
-            expect(parseIdentifier()('function', 0).success).toBe(false);
-            expect(parseIdentifier()('class', 0).success).toBe(false);
+            expect(parseNamepath()('let', 0).success).toBe(false);
+            expect(parseNamepath()('function', 0).success).toBe(false);
+            expect(parseNamepath()('class', 0).success).toBe(false);
         });
         
         it('should fail on numbers starting identifiers', () => {
-            expect(parseIdentifier()('123var', 0).success).toBe(false);
+            expect(parseNamepath()('123var', 0).success).toBe(false);
         });
     });
     

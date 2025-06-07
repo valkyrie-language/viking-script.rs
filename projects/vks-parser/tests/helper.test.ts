@@ -10,9 +10,9 @@ import {
     sepBy,
     sepBy1,
     keyword,
-    identifier,
+    parseIdentifier,
     number,
-    stringLiteral,
+    parseStringLiteral,
     boolean,
     operator,
     symbol,
@@ -201,7 +201,7 @@ describe('Token Parsers', () => {
     
     describe('identifier', () => {
         it('should parse valid identifiers', () => {
-            const parser = identifier();
+            const parser = parseIdentifier();
             
             expect(parser('variable', 0).value).toBe('variable');
             expect(parser('_private', 0).value).toBe('_private');
@@ -225,7 +225,7 @@ describe('Token Parsers', () => {
     
     describe('stringLiteral', () => {
         it('should parse string literals', () => {
-            const parser = stringLiteral();
+            const parser = parseStringLiteral();
             
             expect(parser('"hello"', 0).value).toBe('hello');
             expect(parser("'world'", 0).value).toBe('world');

@@ -9,7 +9,7 @@ import {
     many,
     sepBy,
     keyword,
-    identifier,
+    parseIdentifier,
     matchString,
     skipWhitespaceAndComments
 } from '../helper';
@@ -31,35 +31,35 @@ import {
     MatchExpression,
     MatchCase,
     ObjectProperty,
-    createIdentifier,
+    createNamepath,
     createBinaryExpression,
     createCallExpression
 } from 'viking-hir';
-import { parseLiteral } from './literal';
+import { parseLiteral, parseIdentifier } from './literal';
 import { parseTypeAnnotation } from './type';
 import { parsePattern } from './pattern';
 import { parseStatement, parseBlockStatement } from './statement';
 
 // 标识符解析器
-export function parseIdentifier(): Parser<Identifier> {
+export function parseNamepath(): Parser<Identifier> {
     return (state: ParseState) => {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
-        
+
         // 解析命名空间
-        const namespaceResult = sepBy(identifier(), matchString('.'))(state);
+        const namespaceResult = sepBy(parseIdentifier(), matchString('.'))(state);
         if (!namespaceResult.success || namespaceResult.value.length === 0) {
             return namespaceResult as any;
         }
-        
+
         const parts = namespaceResult.value;
         const name = parts[parts.length - 1];
         const namespace = parts.length > 1 ? parts.slice(0, -1) : undefined;
-        
+
         const location = state.createLocation(startPos);
         return {
             success: true,
-            value: createIdentifier(name, location, namespace),
+            value: createNamepath(name, location, namespace),
             state
         };
     };
@@ -69,7 +69,7 @@ export function parseIdentifier(): Parser<Identifier> {
 function parsePrimaryExpression(): Parser<Expression> {
     return choice(
         parseLiteral(),
-        parseIdentifier(),
+        parseNamepath(),
         parseArrayExpression(),
         parseObjectExpression(),
         parseFunctionExpression(),
@@ -127,7 +127,7 @@ function parseObjectProperty(): Parser<ObjectProperty> {
         
         // 解析键
         const keyResult = choice(
-            identifier(),
+            parseIdentifier(),
             map(sequence(matchString('['), parseExpression(), matchString(']')), ([, expr]) => expr)
         )(state);
         if (!keyResult.success) {
@@ -144,8 +144,8 @@ function parseObjectProperty(): Parser<ObjectProperty> {
                 return {
                     success: true,
                     value: {
-                        key: createIdentifier(keyResult.value, state.createLocation(state.position)),
-                        value: createIdentifier(keyResult.value, state.createLocation(state.position)),
+                        key: createNamepath(keyResult.value, state.createLocation(state.position)),
+                        value: createNamepath(keyResult.value, state.createLocation(state.position)),
                         computed: false,
                         shorthand: true
                     },
@@ -171,7 +171,7 @@ function parseObjectProperty(): Parser<ObjectProperty> {
             success: true,
             value: {
                 key: typeof keyResult.value === 'string' 
-                    ? createIdentifier(keyResult.value, state.createLocation(state.position))
+                    ? createNamepath(keyResult.value, state.createLocation(state.position))
                     : keyResult.value,
                 value: valueResult.value,
                 computed: typeof keyResult.value !== 'string',
@@ -238,7 +238,7 @@ export function parseFunctionExpression(): Parser<FunctionExpression> {
         }
         
         skipWhitespaceAndComments()(state);
-        const idResult = optional(parseIdentifier())(state);
+        const idResult = optional(parseNamepath())(state);
         
         skipWhitespaceAndComments()(state);
         const openResult = matchString('(')(state);
@@ -300,7 +300,7 @@ export function parseArrowFunctionExpression(): Parser<ArrowFunctionExpression> 
         // 解析参数
         const paramsResult = choice(
             // 单个参数不带括号
-            map(parseIdentifier(), (id) => [{ type: 'Pattern', kind: 'Identifier', name: id.name, location: id.location }]),
+            map(parseNamepath(), (id) => [{ type: 'Pattern', kind: 'Identifier', name: id.name, location: id.location }]),
             // 多个参数或带括号的参数
             map(sequence(matchString('('), sepBy(parsePattern(), matchString(',')), matchString(')')), ([, params]) => params)
         )(state);
@@ -525,7 +525,7 @@ function parsePostfixExpression(): Parser<Expression> {
             const dotResult = matchString('.')(state);
             if (dotResult.success) {
                 skipWhitespaceAndComments()(state);
-                const propertyResult = parseIdentifier()(state);
+                const propertyResult = parseNamepath()(state);
                 if (propertyResult.success) {
                     const location = state.createLocation(startState.position);
                     expr = {

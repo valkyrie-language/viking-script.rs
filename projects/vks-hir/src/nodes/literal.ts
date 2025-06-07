@@ -13,12 +13,16 @@ export type Literal =
 
 export interface NullLiteral extends ASTNode {
     type: 'NullLiteral';
-    value: null;
 }
 
 export interface BooleanLiteral extends ASTNode {
     type: 'BooleanLiteral';
     value: boolean;
+}
+
+export interface IdentifierLiteral extends ASTNode {
+    type: 'IdentifierLiteral';
+    value: string;
 }
 
 export interface NumberLiteral extends ASTNode {
@@ -29,8 +33,8 @@ export interface NumberLiteral extends ASTNode {
 
 export interface StringLiteral extends ASTNode {
     type: 'StringLiteral';
-    value: string;
-    raw: string;
+    handler: string;
+    text: string;
 }
 
 
@@ -47,8 +51,8 @@ export function createNumberLiteral(value: number, raw: string, location: Locati
 export function createStringLiteral(value: string, raw: string, location: Location): StringLiteral {
     return {
         type: 'StringLiteral',
-        value,
-        raw,
+        text: value,
+        handler: raw,
         location
     };
 }
@@ -64,7 +68,6 @@ export function createBooleanLiteral(value: boolean, location: Location): Boolea
 export function createNullLiteral(location: Location): NullLiteral {
     return {
         type: 'NullLiteral',
-        value: null,
         location
     };
 }

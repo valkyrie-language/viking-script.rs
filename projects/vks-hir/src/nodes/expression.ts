@@ -130,7 +130,7 @@ export type Expression =
     | MatchExpression;
 
 // 工厂函数
-export function createIdentifier(name: string, location: Location, namespace?: string[]): Identifier {
+export function createNamepath(name: string, location: Location, namespace?: string[]): Identifier {
     return {
         type: 'Identifier',
         name,

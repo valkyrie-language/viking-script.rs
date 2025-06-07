@@ -9,7 +9,7 @@ import {
     many,
     sepBy,
     keyword,
-    identifier,
+    parseIdentifier,
     matchString,
     skipWhitespaceAndComments
 } from '../helper';
@@ -43,7 +43,7 @@ export function parseIdentifierPattern(): Parser<IdentifierPattern> {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
         
-        const nameResult = identifier()(state);
+        const nameResult = parseIdentifier()(state);
         if (!nameResult.success) {
             return nameResult as any;
         }
@@ -151,7 +151,7 @@ function parseObjectPatternProperty(): Parser<ObjectPatternProperty> {
         
         // 解析键
         const keyResult = choice(
-            identifier(),
+            parseIdentifier(),
             map(sequence(matchString('['), parseExpression(), matchString(']')), ([, expr]) => expr)
         )(state);
         if (!keyResult.success) {
@@ -341,7 +341,7 @@ export function parseDestructurePattern(): Parser<DestructurePattern> {
         const startPos = state.position;
         skipWhitespaceAndComments()(state);
         
-        const typeNameResult = identifier()(state);
+        const typeNameResult = parseIdentifier()(state);
         if (!typeNameResult.success) {
             return typeNameResult as any;
         }
@@ -354,7 +354,7 @@ export function parseDestructurePattern(): Parser<DestructurePattern> {
         
         skipWhitespaceAndComments()(state);
         const fieldsResult = sepBy(
-            sequence(identifier(), optional(sequence(matchString(':'), parsePattern()))),
+            sequence(parseIdentifier(), optional(sequence(matchString(':'), parsePattern()))),
             matchString(',')
         )(state);
         if (!fieldsResult.success) {

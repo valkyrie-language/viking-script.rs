@@ -10,7 +10,7 @@ import {
     many1,
     sepBy,
     keyword,
-    identifier,
+    parseIdentifier,
     matchString,
     skipWhitespaceAndComments
 } from '../helper';
@@ -52,7 +52,7 @@ import {
     createClassDeclaration,
     createIfStatement
 } from 'viking-hir';
-import { parseExpression, parseIdentifier } from './expression';
+import { parseExpression, parseNamepath } from './expression';
 import { parseTypeAnnotation, parseTypeParameter } from './type';
 import { parsePattern } from './pattern';
 
@@ -226,7 +226,7 @@ export function parseFunctionDeclaration(): Parser<FunctionDeclaration> {
         }
         
         skipWhitespaceAndComments()(state);
-        const idResult = parseIdentifier()(state);
+        const idResult = parseNamepath()(state);
         if (!idResult.success) {
             return idResult;
         }
@@ -290,7 +290,7 @@ function parseClassProperty(): Parser<ClassProperty> {
         const isStatic = staticResult.value !== null;
         
         skipWhitespaceAndComments()(state);
-        const keyResult = parseIdentifier()(state);
+        const keyResult = parseNamepath()(state);
         if (!keyResult.success) {
             return keyResult;
         }
@@ -350,7 +350,7 @@ function parseClassMethod(): Parser<ClassMethod> {
                 state
             };
         } else {
-            keyResult = parseIdentifier()(state);
+            keyResult = parseNamepath()(state);
             if (!keyResult.success) {
                 return keyResult;
             }
@@ -428,7 +428,7 @@ export function parseClassDeclaration(): Parser<ClassDeclaration> {
         }
         
         skipWhitespaceAndComments()(state);
-        const idResult = parseIdentifier()(state);
+        const idResult = parseNamepath()(state);
         if (!idResult.success) {
             return idResult;
         }
@@ -480,7 +480,7 @@ function parseUnionVariant(): Parser<UnionVariant> {
     return (state: ParseState) => {
         skipWhitespaceAndComments()(state);
         
-        const idResult = parseIdentifier()(state);
+        const idResult = parseNamepath()(state);
         if (!idResult.success) {
             return idResult;
         }
@@ -526,7 +526,7 @@ export function parseUnionDeclaration(): Parser<UnionDeclaration> {
         }
         
         skipWhitespaceAndComments()(state);
-        const idResult = parseIdentifier()(state);
+        const idResult = parseNamepath()(state);
         if (!idResult.success) {
             return idResult;
         }
@@ -585,7 +585,7 @@ function parseTraitMethod(): Parser<TraitMethod> {
         const generator = generatorResult.value !== null;
         
         skipWhitespaceAndComments()(state);
-        const keyResult = parseIdentifier()(state);
+        const keyResult = parseNamepath()(state);
         if (!keyResult.success) {
             return keyResult;
         }
@@ -654,7 +654,7 @@ export function parseTraitDeclaration(): Parser<TraitDeclaration> {
         }
         
         skipWhitespaceAndComments()(state);
-        const idResult = parseIdentifier()(state);
+        const idResult = parseNamepath()(state);
         if (!idResult.success) {
             return idResult;
         }
@@ -915,7 +915,7 @@ export function parseLoopStatement(): Parser<LoopStatement> {
         }
         
         skipWhitespaceAndComments()(state);
-        const labelResult = optional(sequence(keyword('label'), parseIdentifier()))(state);
+        const labelResult = optional(sequence(keyword('label'), parseNamepath()))(state);
         const label = labelResult.value ? labelResult.value[1] : undefined;
         
         skipWhitespaceAndComments()(state);
@@ -950,7 +950,7 @@ export function parseBreakStatement(): Parser<BreakStatement> {
         }
         
         skipWhitespaceAndComments()(state);
-        const labelResult = optional(parseIdentifier())(state);
+        const labelResult = optional(parseNamepath())(state);
         
         skipWhitespaceAndComments()(state);
         optional(matchString(';'))(state);
@@ -980,7 +980,7 @@ export function parseContinueStatement(): Parser<ContinueStatement> {
         }
         
         skipWhitespaceAndComments()(state);
-        const labelResult = optional(parseIdentifier())(state);
+        const labelResult = optional(parseNamepath())(state);
         
         skipWhitespaceAndComments()(state);
         optional(matchString(';'))(state);
@@ -1074,7 +1074,7 @@ export function parseHandlerStatement(): Parser<HandlerStatement> {
         }
         
         skipWhitespaceAndComments()(state);
-        const labelResult = optional(sequence(keyword('label'), parseIdentifier()))(state);
+        const labelResult = optional(sequence(keyword('label'), parseNamepath()))(state);
         const label = labelResult.value ? labelResult.value[1] : undefined;
         
         skipWhitespaceAndComments()(state);
@@ -1236,7 +1236,7 @@ export function parseNamespaceDeclaration(): Parser<NamespaceDeclaration> {
         const shared = sharedResult.value !== null;
         
         skipWhitespaceAndComments()(state);
-        const nameResult = sepBy(identifier(), matchString('.'))(state);
+        const nameResult = sepBy(parseIdentifier(), matchString('.'))(state);
         if (!nameResult.success || nameResult.value.length === 0) {
             return nameResult as any;
         }
@@ -1263,13 +1263,13 @@ function parseImportSpecifier(): Parser<ImportSpecifier> {
     return (state: ParseState) => {
         skipWhitespaceAndComments()(state);
         
-        const importedResult = identifier()(state);
+        const importedResult = parseIdentifier()(state);
         if (!importedResult.success) {
             return importedResult as any;
         }
         
         skipWhitespaceAndComments()(state);
-        const asResult = optional(sequence(keyword('as'), identifier()))(state);
+        const asResult = optional(sequence(keyword('as'), parseIdentifier()))(state);
         const local = asResult.value ? asResult.value[1] : importedResult.value;
         
         return {
@@ -1307,7 +1307,7 @@ export function parseImportDeclaration(): Parser<ImportDeclaration> {
             }
             
             skipWhitespaceAndComments()(state);
-            const localResult = identifier()(state);
+            const localResult = parseIdentifier()(state);
             if (!localResult.success) {
                 return localResult as any;
             }
@@ -1347,7 +1347,7 @@ export function parseImportDeclaration(): Parser<ImportDeclaration> {
                     parseImportSpecifier(),
                     // 嵌套导入 d.{...}
                     map(sequence(
-                        identifier(),
+                        parseIdentifier(),
                         matchString('.'),
                         matchString('{'),
                         sepBy(parseImportSpecifier(), matchString(',')),
@@ -1359,7 +1359,7 @@ export function parseImportDeclaration(): Parser<ImportDeclaration> {
             // using a as b
             map(parseImportSpecifier(), (spec) => [spec]),
             // using a
-            map(identifier(), (name) => [{ imported: name, local: name }])
+            map(parseIdentifier(), (name) => [{ imported: name, local: name }])
         )(state);
         if (!specifiersResult.success) {
             return specifiersResult;
@@ -1396,7 +1396,7 @@ export function parseMacroDeclaration(): Parser<MacroDeclaration> {
         }
         
         skipWhitespaceAndComments()(state);
-        const nameResult = parseIdentifier()(state);
+        const nameResult = parseNamepath()(state);
         if (!nameResult.success) {
             return nameResult;
         }
@@ -1457,7 +1457,7 @@ export function parseTypeDeclaration(): Parser<TypeDeclaration> {
         }
         
         skipWhitespaceAndComments()(state);
-        const idResult = parseIdentifier()(state);
+        const idResult = parseNamepath()(state);
         if (!idResult.success) {
             return idResult;
         }

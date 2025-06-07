@@ -21,7 +21,7 @@ export {
 
 export {
     parseExpression,
-    parseIdentifier,
+    parseNamepath,
     parseArrayExpression,
     parseObjectExpression,
     parseFunctionExpression,
@@ -56,3 +56,4 @@ export {
     parseMacroDeclaration,
     parseTypeDeclaration
 } from './statement';
+export {parseStringLiteral} from "./literal/parseStringLiteral";

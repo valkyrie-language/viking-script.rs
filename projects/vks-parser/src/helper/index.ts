@@ -1,4 +1,4 @@
-import {Location, ParseError, Position} from 'viking-hir';
+import {Location, ParseError, Position, StringLiteral} from 'viking-hir';
 
 // 解析结果类型
 export type ParseResult<T> = {
@@ -70,23 +70,20 @@ export class ParseState {
 // 基础解析器组合子
 
 // 成功解析器
-export function success<T>(value: T): Parser<T> {
-    return (state: ParseState) => ({
+export function success<T>(state: ParseState, value: T): ParseResult<T> {
+    return {
         success: true,
         value,
         state
-    });
+    };
 }
 
 // 失败解析器
-export function failure<T>(message: string, expected?: string[]): Parser<T> {
-    return (state: ParseState) => {
-        state.addError(message, expected, state.peek());
-        return {
-            success: false,
-            errors: state.errors,
-            state
-        };
+export function failure<T>(state: ParseState, message: string, position: Position): Parser<T> {
+    return {
+        success: false,
+        errors: [new ParseError(message, position)],
+        state
     };
 }
 
@@ -376,10 +373,6 @@ export function keyword(word: string): Parser<string> {
     };
 }
 
-// 标识符解析器
-export function identifier(): Parser<string> {
-    return matchRegex(/^[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier');
-}
 
 // 数字解析器
 export function number(): Parser<number> {
@@ -389,108 +382,7 @@ export function number(): Parser<number> {
     );
 }
 
-// 字符串解析器
-export function stringLiteral(): Parser<string> {
-    const singleQuote = (state: ParseState): ParseResult<string> => {
-        if (!state.peek(1).startsWith("'")) {
-            return failure<string>('Expected single quote string')(state);
-        }
 
-        let quoteCount = 0;
-        let i = state.position.offset;
-
-        // 计算开始的引号数量
-        while (i < state.input.length && state.input[i] === "'") {
-            quoteCount++;
-            i++;
-        }
-
-        if (quoteCount < 1) {
-            return failure<string>('Expected at least one quote')(state);
-        }
-
-        const startQuotes = "'".repeat(quoteCount);
-        const endQuotes = "'".repeat(quoteCount);
-
-        // 查找结束引号
-        let content = '';
-        while (i < state.input.length) {
-            if (state.input.slice(i, i + quoteCount) === endQuotes) {
-                const fullMatch = startQuotes + content + endQuotes;
-                state.advance(fullMatch);
-                return {
-                    success: true,
-                    value: content,
-                    state
-                };
-            }
-            content += state.input[i];
-            i++;
-        }
-
-        state.addError('Unterminated string literal');
-        return {
-            success: false,
-            errors: state.errors,
-            state
-        };
-    };
-
-    const doubleQuote = (state: ParseState): ParseResult<string> => {
-        if (!state.peek(1).startsWith('"')) {
-            return failure<string>('Expected double quote string')(state);
-        }
-
-        let quoteCount = 0;
-        let i = state.position.offset;
-
-        // 计算开始的引号数量
-        while (i < state.input.length && state.input[i] === '"') {
-            quoteCount++;
-            i++;
-        }
-
-        if (quoteCount < 1) {
-            return failure<string>('Expected at least one quote')(state);
-        }
-
-        const startQuotes = '"'.repeat(quoteCount);
-        const endQuotes = '"'.repeat(quoteCount);
-
-        // 查找结束引号
-        let content = '';
-        while (i < state.input.length) {
-            if (state.input.slice(i, i + quoteCount) === endQuotes) {
-                const fullMatch = startQuotes + content + endQuotes;
-                state.advance(fullMatch);
-                return {
-                    success: true,
-                    value: content,
-                    state
-                };
-            }
-            content += state.input[i];
-            i++;
-        }
-
-        state.addError('Unterminated string literal');
-        return {
-            success: false,
-            errors: state.errors,
-            state
-        };
-    };
-
-    return choice(singleQuote, doubleQuote);
-}
-
-// 布尔值解析器
-export function boolean(): Parser<boolean> {
-    return choice(
-        map(keyword('true'), () => true),
-        map(keyword('false'), () => false)
-    );
-}
 
 // 错误恢复组合子
 export function recover<T>(parser: Parser<T>, recovery: Parser<T>): Parser<T> {

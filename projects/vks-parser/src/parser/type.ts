@@ -9,7 +9,7 @@ import {
     many,
     sepBy,
     keyword,
-    identifier,
+    parseIdentifier,
     matchString,
     skipWhitespaceAndComments
 } from '../helper';
@@ -72,7 +72,7 @@ export function parseIdentifierType(): Parser<IdentifierType> {
         skipWhitespaceAndComments()(state);
         
         // 解析命名空间
-        const namespaceResult = sepBy(identifier(), matchString('.'))(state);
+        const namespaceResult = sepBy(parseIdentifier(), matchString('.'))(state);
         if (!namespaceResult.success || namespaceResult.value.length === 0) {
             return namespaceResult as any;
         }
@@ -173,7 +173,7 @@ function parseObjectTypeProperty(): Parser<ObjectTypeProperty> {
         const readonly = readonlyResult.value !== null;
         
         skipWhitespaceAndComments()(state);
-        const keyResult = identifier()(state);
+        const keyResult = parseIdentifier()(state);
         if (!keyResult.success) {
             return keyResult as any;
         }
@@ -250,7 +250,7 @@ function parseFunctionTypeParameter(): Parser<{ name?: string; type: TypeAnnotat
         skipWhitespaceAndComments()(state);
         
         // 尝试解析参数名
-        const nameResult = optional(sequence(identifier(), matchString(':')))(state);
+        const nameResult = optional(sequence(parseIdentifier(), matchString(':')))(state);
         const name = nameResult.value ? nameResult.value[0] : undefined;
         
         skipWhitespaceAndComments()(state);
@@ -465,7 +465,7 @@ export function parseTypeParameter(): Parser<TypeParameter> {
     return (state: ParseState) => {
         skipWhitespaceAndComments()(state);
         
-        const nameResult = identifier()(state);
+        const nameResult = parseIdentifier()(state);
         if (!nameResult.success) {
             return nameResult as any;
         }
