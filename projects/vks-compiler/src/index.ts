@@ -6,14 +6,8 @@ import {SourceMapGenerator} from "source-map";
 export interface CompileOptions {
     filename?: string;
     sourceMap?: boolean;
-    optimize?: boolean;
-    strict?: boolean;
-    target?: 'es2020';
     typeCheck?: boolean;
     runtimePath?: string;
-    emitTokens?: boolean;
-    emitAST?: boolean;
-    emitCPS?: boolean;
 }
 
 export interface CompileResult {
@@ -45,7 +39,8 @@ export function compile(source: string, options?: CompileOptions): CompileResult
     // TODO: Implement other compilation stages (type checking, CPS transformation)
 
     const generator = new CodeGenerator();
-    const {code, map} = generator.generate(ast);
+    // TODO: add files, regroup classes
+    const {code, map} = generator.finish();
 
     return {
         success: true,
