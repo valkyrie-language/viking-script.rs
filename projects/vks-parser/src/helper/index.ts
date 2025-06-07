@@ -23,26 +23,23 @@ export class ParseState {
         this.errors = [];
     }
 
-    // todo: advance
+    advance(text: string): void {
+        for (const char of text) {
+            this.position.offset++;
+            if (char == '\n') {
+                this.position.column = 1;
+                this.position.line++;
+            }
+                // '\r' ignored here
+            // '\t' only count as 1 column
+            else {
+                this.position.column++;
+            }
+        }
+    }
+
     // todo: matchString
     // todo: matchRegex
-}
-
-// 前进位置
-export function advancePosition(position: Position, char: string): Position {
-    if (char === '\n') {
-        return {line: position.line + 1, column: 1};
-    }
-    return {line: position.line, column: position.column + 1};
-}
-
-// 前进位置多个字符
-export function advancePositionBy(position: Position, text: string): Position {
-    let newPosition = position;
-    for (const char of text) {
-        newPosition = advancePosition(newPosition, char);
-    }
-    return newPosition;
 }
 
 // 成功结果
