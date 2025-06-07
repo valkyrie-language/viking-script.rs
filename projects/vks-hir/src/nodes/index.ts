@@ -1,9 +1,10 @@
 // 导出所有 AST 节点类型
-export * from './statement';
-export * from './expression';
-export * from './literal';
-export * from './pattern';
-export * from './type';
+export * from './statement.ts';
+export * from './expression.ts';
+export * from './literal.ts';
+export * from './pattern.ts';
+export * from './type.ts';
+import { Location } from "../helper.ts";
 
 // AST 基础类型定义
 
@@ -28,7 +29,7 @@ export type NodeType =
     | "NullLiteral"
     | "UndefinedLiteral"
     // Identifiers
-    | "IdentifierNode"
+    | "IdentifierLiteral"
     | "NamePathNode"
     // Expressions
     | "BinaryExpression"

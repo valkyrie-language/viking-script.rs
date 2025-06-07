@@ -86,7 +86,7 @@ describe('字面量解析', () => {
     describe('数字解析', () => {
         it('should parse integer literals', () => {
             const state = new ParseState('123');
-            const result = parseNumberLiteral()(state);
+            const result = parseNumberLiteral(state);
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(123);
@@ -94,41 +94,41 @@ describe('字面量解析', () => {
         });
 
         it('should parse floating point literals', () => {
-            const result = parseNumberLiteral()(new ParseState('123.45'));
+            const result = parseNumberLiteral(new ParseState('123.45'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(123.45);
         });
 
         it('should not parse negative numbers', () => {
-            const result = parseNumberLiteral()(new ParseState('-42'));
+            const result = parseNumberLiteral(new ParseState('-42'));
 
             expect(result.success).toBe(false);
         });
 
         it('should parse hexadecimal literals', () => {
-            const result = parseNumberLiteral()(new ParseState('0x1A'));
+            const result = parseNumberLiteral(new ParseState('0x1A'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(0);
         });
 
         it('should parse binary literals', () => {
-            const result = parseNumberLiteral()(new ParseState('0b1010'));
+            const result = parseNumberLiteral(new ParseState('0b1010'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(0);
         });
 
         it('should parse octal literals', () => {
-            const result = parseNumberLiteral()(new ParseState('0o17'));
+            const result = parseNumberLiteral(new ParseState('0o17'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(0);
         });
 
         it('should parse scientific notation', () => {
-            const result = parseNumberLiteral()(new ParseState('1.23e4'));
+            const result = parseNumberLiteral(new ParseState('1.23e4'));
 
             expect(result.success).toBe(true);
             expect(result.value?.value).toBe(12300);

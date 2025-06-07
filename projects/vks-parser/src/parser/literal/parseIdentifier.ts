@@ -1,9 +1,9 @@
 // 标识符解析器
-import {failure, Parser, success} from "@helper";
+import {failure, ParseResult, success} from "@helper";
 import {BooleanLiteral, IdentifierLiteral, NullLiteral} from "viking-hir";
-import {ParseState} from "@helper/parseState";
+import {ParseState} from "@helper/parseState.ts";
 
-export function parseIdentifier(state: ParseState): Parser<IdentifierLiteral> {
+export function parseIdentifier(state: ParseState): ParseResult<IdentifierLiteral> {
     const start = state.position;
     const regex = /^(?:_|\p{XID_Start})(?:\p{XID_Continue}*)/u;
     const matchResult = state.residual.match(regex);
@@ -22,7 +22,7 @@ export function parseIdentifier(state: ParseState): Parser<IdentifierLiteral> {
 }
 
 // null 字面量解析器
-export function parseNullLiteral(state: ParseState): Parser<NullLiteral> {
+export function parseNullLiteral(state: ParseState): ParseResult<NullLiteral> {
     const id = parseIdentifier(state);
     if (id.success) {
         if (id.value.value == "null") {
@@ -31,13 +31,13 @@ export function parseNullLiteral(state: ParseState): Parser<NullLiteral> {
                 location: id.value.location
             })
         }
-        return failure(state, `except \`null\``, id.value.location.start);
+        return failure(state, `except \`null\``, id.value.location!.start);
     }
     return id;
 }
 
 // 布尔字面量解析器
-export function parseBooleanLiteral(state: ParseState): Parser<BooleanLiteral> {
+export function parseBooleanLiteral(state: ParseState): ParseResult<BooleanLiteral> {
     const id = parseIdentifier(state);
     if (id.success) {
         if (id.value.value == "true") {
@@ -54,7 +54,7 @@ export function parseBooleanLiteral(state: ParseState): Parser<BooleanLiteral> {
                 location: id.value.location
             })
         }
-        return failure(state, `except \`null\``, id.value.location.start);
+        return failure(state, `except \`null\``, id.value.location!.start);
     }
     return id;
 }

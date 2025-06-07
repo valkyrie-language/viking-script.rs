@@ -1,7 +1,7 @@
-export * from "@helper/parseState"
+export * from "@helper/parseState.ts"
 
 import {ParseError, Position} from 'viking-hir';
-import {ParseState} from "@helper/parseState";
+import {ParseState} from "@helper/parseState.ts";
 
 // 解析结果类型
 export type ParseResult<T> = {
@@ -29,7 +29,7 @@ export function success<T>(state: ParseState, value: T): ParseResult<T> {
 }
 
 // 失败解析器
-export function failure<T>(state: ParseState, message: string, position: Position): Parser<T> {
+export function failure<T>(state: ParseState, message: string, position: Position): ParseResult<T> {
     return {
         success: false,
         errors: [new ParseError(message, position)],
@@ -100,7 +100,7 @@ export function sequence<T extends readonly unknown[]>(...parsers: { [K in keyof
 
         return {
             success: true,
-            value: results as T,
+            value: results as unknown as T,
             state
         };
     };
@@ -132,7 +132,7 @@ export function choice<T>(...parsers: Parser<T>[]): Parser<T> {
 }
 
 // 可选组合子
-export function optional<T>(parser: Parser<T>): Parser<T | null> {
+export function optional<T>(parser: Parser<T>): Parser<T | undefined> {
     return (state: ParseState) => {
         const startState = state.clone();
         const result = parser(state);
@@ -141,7 +141,7 @@ export function optional<T>(parser: Parser<T>): Parser<T | null> {
         }
         return {
             success: true,
-            value: null,
+            value: undefined,
             state: startState
         };
     };

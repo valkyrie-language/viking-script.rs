@@ -132,7 +132,7 @@ export type Expression =
 // 工厂函数
 export function createNamepath(name: string, location: Location, namespace?: string[]): NamePathNode {
     return {
-        type: 'Identifier',
+        type: 'NamePathNode',
         name,
         namespace,
         location

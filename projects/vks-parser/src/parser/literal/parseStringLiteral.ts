@@ -1,11 +1,11 @@
-import {choice, failure, map, optional, sequence, success} from "@helper"
-import {parseIdentifier} from "../index";
-import {StringLiteral} from "viking-hir";
-import {ParseState} from "@helper/parseState";
+import {choice, failure, map, optional, Parser, ParseResult, sequence, success} from "@helper"
+import {parseIdentifier} from "@parser/index.ts";
+import {IdentifierLiteral, StringLiteral} from "viking-hir";
+import {ParseState} from "@helper/parseState.ts";
 
 export const parseStringLiteral: Parser<StringLiteral> = map(
     sequence(
-        optional(parseIdentifier),
+        optional<IdentifierLiteral>(parseIdentifier),
         choice(parseQuotedString("'"), parseQuotedString('"'))
     ),
     ([handler, text]) => {
@@ -16,12 +16,12 @@ export const parseStringLiteral: Parser<StringLiteral> = map(
         }
     })
 
-export function parseQuotedString(quote: string): ParseResult<string> {
+export function parseQuotedString(quote: string): Parser<string> {
     return (state: ParseState) => {
         const count = countQuote(state.residual, quote);
         // not string
         if (count == 0) {
-            return failure(state, 'Expected single-quoted string');
+            return failure(state, 'Expected single-quoted string', state.position);
         }
         // empty string
         else if (count == 2) {
