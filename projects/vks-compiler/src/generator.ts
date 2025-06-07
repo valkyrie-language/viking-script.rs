@@ -1,6 +1,6 @@
 import { SourceMapGenerator } from 'source-map';
 import { CPSNode, CPSExpression, CPSStatement, CPSFunction, CPSCall, CPSLiteral, CPSVariable, CPSBinary } from './transformer';
-import { Location } from './ast';
+import { Location } from '../../vks-hir/src/nodes';
 
 export interface GeneratorOptions {
   sourceMap?: boolean;

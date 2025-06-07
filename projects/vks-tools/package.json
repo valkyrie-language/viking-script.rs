@@ -1,7 +1,7 @@
 {
-    "name": "vks-compiler",
+  "name": "vks-tools",
   "version": "0.1.0",
-  "description": "Viking Script Language Compiler",
+  "description": "Viking Script Development Tools",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,30 +11,20 @@
     "clean": "rimraf dist"
   },
   "keywords": [
-    "compiler",
-    "language",
-    "typescript",
-    "javascript",
     "viking",
-    "cps",
-    "algebraic-effects"
+    "tools",
+    "cli",
+    "typescript"
   ],
   "author": "Viking Script Team",
   "license": "MIT",
-  "dependencies": {
-    "source-map": "^0.7.4"
-  },
   "devDependencies": {
     "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
-    "@types/source-map": "^0.5.7",
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
-  },
-    "engines": {
-        "node": ">=16.0.0"
-    }
+  }
 }

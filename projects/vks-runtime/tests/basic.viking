@@ -1,0 +1,75 @@
+# Viking Script 基本语法示例
+
+# 变量声明
+let name = "Viking";
+let mut count = 0;
+const PI = 3.14159;
+
+# 函数定义
+function greet(name: string) -> string {
+    return "Hello, " + name + "!";
+}
+
+# 类定义
+class Counter {
+    value: number = 0;
+    
+    constructor(initial: number) {
+        self.value = initial;
+    }
+    
+    increment() {
+        self.value = self.value + 1;
+    }
+    
+    get_value() -> number {
+        return self.value;
+    }
+}
+
+# 联合类型
+union Result<T, E> {
+    Ok { value: T }
+    Err { error: E }
+}
+
+# 模式匹配
+function handle_result(result: Result<number, string>) {
+    match result {
+        case Ok { value }:
+            print("Success: " + value);
+        case Err { error }:
+            print("Error: " + error);
+    }
+}
+
+# 主函数
+function main() {
+    # 基本操作
+    let message = greet(name);
+    print(message);
+    
+    # 使用类
+    let counter = Counter(10);
+    counter.increment();
+    print("Counter value: " + counter.get_value());
+    
+    # 模式匹配
+    let success = Result::Ok { value: 42 };
+    let failure = Result::Err { error: "Something went wrong" };
+    
+    handle_result(success);
+    handle_result(failure);
+    
+    # 循环
+    count = 0;
+    loop {
+        if count >= 5 {
+            break;
+        }
+        print("Count: " + count);
+        count = count + 1;
+    }
+    
+    print("Program completed!");
+}

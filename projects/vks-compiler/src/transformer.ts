@@ -1,5 +1,5 @@
-import { ASTNode, Statement, Expression, Location } from './ast';
-import * as AST from './ast';
+import { ASTNode, Statement, Expression, Location } from '../../vks-hir/src/nodes';
+import * as AST from '../../vks-hir/src/nodes';
 import { SymbolTable } from './symbol-table';
 
 export interface CPSNode {

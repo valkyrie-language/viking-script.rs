@@ -1,4 +1,4 @@
-import { Type, Scope, VariableInfo, FunctionInfo } from './ast';
+import { Type, Scope, VariableInfo, FunctionInfo } from '../../vks-hir/src/nodes';
 
 export class SymbolTable {
   private currentScope: Scope;

@@ -1,9 +1,15 @@
 {
-    "name": "vks-runtime",
+    "name": "viking-hir",
     "version": "0.1.0",
-    "description": "Viking Script Language Runtime",
-    "main": "src/index.js",
-    "types": "dist/index.d.ts",
+    "description": "Viking Script High-Level Intermediate Representation (HIR) AST Definitions",
+    "type": "module",
+    "exports": {
+        ".": {
+            "default": "./src/index.ts",
+            "types": "./src/index.d.ts",
+            "import": "./src/index.ts"
+        }
+    },
     "scripts": {
         "build": "vite build",
         "dev": "vite build --watch",
@@ -12,10 +18,10 @@
     },
     "keywords": [
         "viking",
-        "runtime",
-        "vm",
-        "effects",
-        "javascript"
+        "hir",
+        "ast",
+        "compiler",
+        "typescript"
     ],
     "author": "Viking Script Team",
     "license": "MIT",

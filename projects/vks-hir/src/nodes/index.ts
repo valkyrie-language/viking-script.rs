@@ -6,15 +6,16 @@ export * from './pattern';
 export * from './type';
 
 // AST 基础类型定义
-export interface Position {
-    line: number;
-    column: number;
-}
 
-export interface Location {
-    start: Position;
-    end: Position;
-    file: string;
+export interface ASTNode {
+    type: NodeType;
+    location?: Location;
+    meta?: {
+        inferredType?: Type;
+        scope?: Scope;
+        compiledName?: string;
+        cpsTransformed?: boolean;
+    };
 }
 
 export type NodeType =
@@ -104,16 +105,5 @@ export interface FunctionInfo {
     isAsync: boolean;
     isGenerator: boolean;
     namespace: string[];
-}
-
-export interface ASTNode {
-    type: NodeType;
-    location?: Location;
-    meta?: {
-        inferredType?: Type;
-        scope?: Scope;
-        compiledName?: string;
-        cpsTransformed?: boolean;
-    };
 }
 

@@ -1,6 +1,6 @@
-import { ASTNode, Type, Statement, Expression, Pattern } from './ast';
+import { ASTNode, Type, Statement, Expression, Pattern } from '../../vks-hir/src/nodes';
 import { SymbolTable } from './symbol-table';
-import * as AST from './ast';
+import * as AST from '../../vks-hir/src/nodes';
 
 export interface TypeCheckError {
   message: string;
