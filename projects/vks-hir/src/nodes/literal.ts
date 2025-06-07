@@ -1,5 +1,26 @@
 import {ASTNode} from './index';
 
+export interface LiteralNode extends ASTNode {
+    type: 'Literal';
+    kind: string;
+}
+
+export type Literal =
+    | NumberLiteral
+    | StringLiteral
+    | BooleanLiteral
+    | NullLiteral;
+
+export interface NullLiteral extends ASTNode {
+    type: 'NullLiteral';
+    value: null;
+}
+
+export interface BooleanLiteral extends ASTNode {
+    type: 'BooleanLiteral';
+    value: boolean;
+}
+
 export interface NumberLiteral extends ASTNode {
     type: 'NumberLiteral';
     value: number;
@@ -12,27 +33,6 @@ export interface StringLiteral extends ASTNode {
     raw: string;
 }
 
-export interface BooleanLiteral extends ASTNode {
-    type: 'BooleanLiteral';
-    value: boolean;
-}
-
-export interface NullLiteral extends ASTNode {
-    type: 'NullLiteral';
-    value: null;
-}
-
-export interface UndefinedLiteral extends ASTNode {
-    type: 'UndefinedLiteral';
-    value: undefined;
-}
-
-export type Literal =
-    | NumberLiteral
-    | StringLiteral
-    | BooleanLiteral
-    | NullLiteral
-    | UndefinedLiteral;
 
 // 工厂函数
 export function createNumberLiteral(value: number, raw: string, location: Location): NumberLiteral {
@@ -65,14 +65,6 @@ export function createNullLiteral(location: Location): NullLiteral {
     return {
         type: 'NullLiteral',
         value: null,
-        location
-    };
-}
-
-export function createUndefinedLiteral(location: Location): UndefinedLiteral {
-    return {
-        type: 'UndefinedLiteral',
-        value: undefined,
         location
     };
 }
