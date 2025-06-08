@@ -250,7 +250,7 @@ src/
 ├── index.ts           # 语法分析器
 ├── symbol-table.ts     # 符号表管理
 ├── type-checker.ts     # 类型检查器
-├── transformer.ts      # CPS 变换器
+├── cps.ts      # CPS 变换器
 ├── generator.ts        # 代码生成器
 ├── compiler.ts         # 编译器主入口
 ├── runtime/            # 运行时系统

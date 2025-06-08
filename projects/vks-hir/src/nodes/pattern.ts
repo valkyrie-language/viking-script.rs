@@ -1,6 +1,6 @@
-import {ASTNode} from './index';
-import {Expression} from './expression';
-import {TypeAnnotation} from './type';
+import {ASTNode} from './index.ts';
+import {Expression} from './expression.ts';
+import {TypeAnnotation} from './type.ts';
 
 export interface PatternNode extends ASTNode {
     type: 'Pattern';

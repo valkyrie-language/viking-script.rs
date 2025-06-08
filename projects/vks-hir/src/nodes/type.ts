@@ -1,5 +1,5 @@
-import {ASTNode} from './index';
-import {Expression} from './expression';
+import {ASTNode} from './index.ts';
+import {Expression} from './expression.ts';
 
 export interface TypeAnnotation extends ASTNode {
     type: 'TypeAnnotation';

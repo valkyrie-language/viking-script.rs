@@ -1,8 +1,8 @@
-import {ASTNode} from './index';
-import {Statement} from './statement';
-import {LiteralNode} from './literal';
-import {Pattern} from './pattern';
-import {TypeAnnotation} from './type';
+import {ASTNode} from './index.ts';
+import {Statement} from './statement.ts';
+import {LiteralNode} from './literal.ts';
+import {Pattern} from './pattern.ts';
+import {TypeAnnotation} from './type.ts';
 
 export interface NamePathNode extends ASTNode {
     type: 'NamePathNode';

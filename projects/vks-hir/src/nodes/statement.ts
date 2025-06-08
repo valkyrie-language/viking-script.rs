@@ -1,7 +1,7 @@
-import {ASTNode} from './index';
-import {Expression, MatchCase} from './expression';
-import {Pattern} from './pattern';
-import {TypeAnnotation} from './type';
+import {ASTNode} from './index.ts';
+import {Expression, MatchCase} from './expression.ts';
+import {Pattern} from './pattern.ts';
+import {TypeAnnotation} from './type.ts';
 
 export interface Program extends ASTNode {
     type: 'Program';
