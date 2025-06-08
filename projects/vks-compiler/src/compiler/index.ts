@@ -1,51 +1,38 @@
-import {SourceMapGenerator} from "source-map";
-import {Location, ParseError, Position} from "viking-hir";
-import {parse} from "viking-parser";
-import {CodeGenerator} from "../generator/index.ts";
+import {parse} from 'viking-parser';
+import {Program} from 'viking-hir';
+import {TypeChecker} from '../analyzer/type-checker.ts';
+import {CPSTransformer} from '../transformer/cps-transformer.ts';
+import {CodeOptimizer, GenerateOptions, JavaScriptGenerator} from '../generator/js-generator.ts';
 
 export interface CompileOptions {
-    filename?: string;
     sourceMap?: boolean;
+    minify?: boolean;
+    target?: 'es5' | 'es2015' | 'es2017' | 'es2020';
+    runtime?: 'browser' | 'node';
+    optimize?: boolean;
     typeCheck?: boolean;
-    runtimePath?: string;
 }
 
 export interface CompileResult {
-    success: boolean;
-    code?: string;
-    map?: SourceMapGenerator;
-    errors: ParseError[];
+    code: string;
+    sourceMap?: string;
+    errors?: CompileError[];
+    warnings?: CompileWarning[];
 }
 
-export function compile(source: string, options?: CompileOptions): CompileResult {
-    const parseResult = parse(source);
+export interface CompileError {
+    message: string;
+    location?: any;
+    type: 'parse' | 'type' | 'transform' | 'generate';
+}
 
-    if (parseResult.errors.length > 0) {
-        return {
-            success: false,
-            errors: parseResult.errors
-        };
-    }
+export interface CompileWarning {
+    message: string;
+    location?: any;
+    type: 'type' | 'optimization';
+}
 
-    const ast = parseResult.ast;
+export function compile(files: { path: string; content: string }[], options: CompileOptions = {}): CompileResult {
 
-    if (!ast) {
-        return {
-            success: false,
-            errors: [new ParseError('Failed to parse source into AST', new Location(new Position(1, 1), new Position(1, 1)))]
-        };
-    }
 
-    // TODO: Implement other compilation stages (type checking, CPS transformation)
-
-    const generator = new CodeGenerator();
-    // TODO: add files, regroup classes
-    const {code, map} = generator.finish();
-
-    return {
-        success: true,
-        code,
-        map: options?.sourceMap ? map : undefined,
-        errors: []
-    };
 }

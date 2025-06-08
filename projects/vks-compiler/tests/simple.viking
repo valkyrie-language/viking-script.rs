@@ -1,0 +1,46 @@
+# 简单的 Viking 脚本测试
+
+# 变量声明
+let a = 42;
+let b = "hello";
+let mut c = true;
+
+# 函数定义
+function add(x: number, y: number) -> number {
+    return x + y;
+}
+
+# 类定义
+class Person {
+    name: string = "";
+    age: number = 0;
+    
+    constructor(name: string, age: number) {
+        self.name = name;
+        self.age = age;
+    }
+    
+    greet() {
+        print("Hello, my name is " + self.name);
+    }
+}
+
+# 主程序
+let result = add(10, 20);
+print("Result: " + result);
+
+let person = Person("Alice", 25);
+person.greet();
+
+# 条件语句
+if result > 25 {
+    print("Result is greater than 25");
+} else {
+    print("Result is not greater than 25");
+}
+
+# 循环
+loop {
+    print("This is a loop");
+    break;
+}
